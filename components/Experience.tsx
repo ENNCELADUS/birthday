@@ -29,17 +29,6 @@ function MainStage() {
         }
     })
 
-    // Debug: Hotkey to skip to Finale
-    useEffect(() => {
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'f' || e.key === 'F') {
-                console.log("Forcing Finale via Hotkey")
-                setStage('FINALE')
-            }
-        }
-        window.addEventListener('keydown', handleKey)
-        return () => window.removeEventListener('keydown', handleKey)
-    }, [setStage])
 
     return (
         <group ref={groupRef}>
@@ -64,20 +53,24 @@ function SceneContent() {
                 />
             </EffectComposer>
 
-            {stage === 'INTRO' && <IntroSequence />}
+            <Suspense fallback={null}>
+                {stage === 'INTRO' && <IntroSequence />}
+            </Suspense>
 
             {stage === 'MAIN_STAGE' && (
                 <ScrollControls pages={4} damping={0.2}>
-                    {/* The 3D Scene */}
-                    <NeuralBackground />
-                    <MainStage />
-                    <DataNodes />
-                    {/* The HTML Overlay */}
-                    <Overlay />
+                    <Suspense fallback={null}>
+                        <NeuralBackground />
+                        <MainStage />
+                        <DataNodes />
+                        <Overlay />
+                    </Suspense>
                 </ScrollControls>
             )}
 
-            {stage === 'FINALE' && <Finale />}
+            <Suspense fallback={null}>
+                {stage === 'FINALE' && <Finale />}
+            </Suspense>
 
             <SoundManager />
         </>
@@ -91,9 +84,7 @@ export default function Experience() {
             dpr={[1, 2]}
             gl={{ antialias: false, alpha: false }}
         >
-            <Suspense fallback={null}>
-                <SceneContent />
-            </Suspense>
+            <SceneContent />
         </Canvas>
     )
 }

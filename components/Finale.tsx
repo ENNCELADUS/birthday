@@ -65,7 +65,6 @@ function PhysicsLetter({ char, position, offset }: { char: string, position: [nu
             position={position}
             fontSize={1.5}
             color="#ffff00"
-            font="https://fonts.gstatic.com/s/sharetechmono/v15/J7aHnp1uDWRCCmbxrcUJ5ue95n5o.woff"
             anchorX="center"
             anchorY="middle"
         >
