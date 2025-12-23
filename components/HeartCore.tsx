@@ -116,9 +116,10 @@ function generateHeartPoints(count: number) {
             const py = (Math.random() - 0.5) * 3;
             const pz = (Math.random() - 0.5) * 3;
 
-            const a = px * px + (9 / 4) * py * py + pz * pz - 1;
-            if (a * a * a - px * px * pz * pz * pz - (9 / 80) * py * py * pz * pz * pz < 0) {
-                positions[i * 3] = px; // Scale?
+            const a = px * px + py * py + (9 / 4) * pz * pz - 1;
+            // The implicit heart equation: (x^2 + y^2 + 9/4 z^2 - 1)^3 - x^2 y^3 - 9/80 z^2 y^3 < 0
+            if (a * a * a - px * px * py * py * py - (9 / 80) * pz * pz * py * py * py < 0) {
+                positions[i * 3] = px;
                 positions[i * 3 + 1] = py;
                 positions[i * 3 + 2] = pz;
                 done = true;

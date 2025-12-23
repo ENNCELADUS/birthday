@@ -70,8 +70,9 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
+                    font="/fonts/NotoSansSC.ttf"
                 >
-                    {"> INITIALIZING MATERNAL PROTOCOLS..."}
+                    {"> 正在初始化母体协议..."}
                 </Text>
                 <Text
                     position={[0, -0.3, 0]}
@@ -79,8 +80,9 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
+                    font="/fonts/NotoSansSC.ttf"
                 >
-                    {showDNA ? "> MOUNTING MITOCHONDRIAL ENGINE..." : ""}
+                    {showDNA ? "> 正在挂载线粒体引擎..." : ""}
                 </Text>
                 <Text
                     position={[0, -0.6, 0]}
@@ -88,8 +90,9 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
+                    font="/fonts/NotoSansSC.ttf"
                 >
-                    {showDNA ? "> SYNCING HEARTBEAT PROTOCOLS..." : ""}
+                    {showDNA ? "> 正在同步心跳协议..." : ""}
                 </Text>
             </group>
 

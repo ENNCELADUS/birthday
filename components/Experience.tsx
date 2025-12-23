@@ -58,7 +58,7 @@ function SceneContent() {
             </Suspense>
 
             {stage === 'MAIN_STAGE' && (
-                <ScrollControls pages={4} damping={0.2}>
+                <ScrollControls pages={5} damping={0.2}>
                     <Suspense fallback={null}>
                         <NeuralBackground />
                         <MainStage />

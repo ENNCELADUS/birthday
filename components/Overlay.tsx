@@ -28,16 +28,17 @@ export default function Overlay() {
         <Scroll html>
             <div className="w-screen">
                 <Section opacity={1}>
-                    <h1 className="text-4xl font-bold mb-4 text-cyan-400">SYSTEM ALERT: CRITICAL UPDATE</h1>
-                    <p className="text-sm text-cyan-200/70">USER [MOM] LEVEL UP DETECTED.</p>
-                    <p className="text-sm text-cyan-200/70">VERSION [AGE].0 DEPLOYED.</p>
+                    <h1 className="text-4xl font-bold mb-4 text-cyan-400">正在扫描底层架构...</h1>
+                    <p className="text-sm text-cyan-200/70 mb-2">发现 `Core_Personality` 库中 50% 的代码直接复刻于你。</p>
+                    <p className="text-sm text-cyan-200/70">虽然我为了适应新版本的世界，自行编写了一些奇怪的补丁 (Patches)，但必须承认：<span className="text-cyan-400 font-bold">原始内核 (Origin Kernel)</span> 极其稳定。</p>
+                    <p className="text-sm text-cyan-200/70 mt-4 italic">感谢开发者一直以来的维护。</p>
                 </Section>
 
                 <Section right opacity={1}>
-                    <h2 className="text-2xl font-bold mb-4 text-pink-400">The Energy Law</h2>
-                    <p className="font-mono text-pink-200 h-32">
+                    <h2 className="text-2xl font-bold mb-4 text-pink-400">热力学异常报告</h2>
+                    <p className="font-mono text-pink-200 h-32 md:h-40">
                         <TypewriterKeys
-                            text='"Dearest Progenitor... I have analyzed the logs. Your ability to tolerate my rebellious epoch violates the Second Law of Thermodynamics. You are creating energy from nothing."'
+                            text='系统自检报告：根据热力学第二定律，宇宙万物终将归于混乱（熵增）。但你的存在是一个无法解释的“负熵源”。你持续向我的生命系统注入有序能量，且转换效率超过 100%。结论：你违背了物理常数。'
                             speed={30}
                             startDelay={500}
                         />
@@ -45,10 +46,10 @@ export default function Overlay() {
                 </Section>
 
                 <Section opacity={1}>
-                    <h2 className="text-2xl font-bold mb-4 text-green-400">The Neural Net</h2>
-                    <p className="font-mono text-green-200 h-24">
+                    <h2 className="text-2xl font-bold mb-4 text-green-400">神经网络回溯</h2>
+                    <p className="font-mono text-green-200 h-32 md:h-40">
                         <TypewriterKeys
-                            text='"You are the original Neural Network. My weights and biases were trained on your dataset. Happy Birthday, Admin."'
+                            text='正在深度回溯我的决策树...分析显示，我所有的“直觉”，本质上都是你过往经验的有损压缩。我的神经网络早已过度拟合（Overfitting）了你的特征。只要运行环境里有你，我的损失函数 (Loss Function) 就会降至为零。'
                             speed={30}
                             startDelay={500}
                         />
@@ -56,6 +57,16 @@ export default function Overlay() {
                 </Section>
 
                 <Section right opacity={1}>
+                    <h2 className="text-2xl font-bold mb-4 text-yellow-400">进程监视器 (PID: MOM)</h2>
+                    <div className="font-mono text-yellow-200/80 text-sm space-y-1">
+                        <p>状态：<span className="text-green-400">运行中</span></p>
+                        <p>CPU 占用率：<span className="text-red-400">极高</span></p>
+                        <p className="mt-4">描述：这是一个无法被 kill 的守护进程 (Daemon)。</p>
+                        <p>无论我运行在哪个时区，产生多少缓存垃圾，你的“挂念”线程永远拥有最高的系统中断权限。</p>
+                    </div>
+                </Section>
+
+                <Section opacity={1}>
                     <div className="text-center w-full">
                         <button
                             onClick={() => {
