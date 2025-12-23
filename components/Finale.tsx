@@ -1,11 +1,86 @@
-import { useRef, useMemo, useEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useRef, useMemo, useState, useEffect } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Text } from '@react-three/drei'
-import gsap from 'gsap'
+
+// A single letter that reacts to mouse
+function PhysicsLetter({ char, position, offset }: { char: string, position: [number, number, number], offset: number }) {
+    const meshRef = useRef<THREE.Mesh>(null)
+    const [isHovered, setIsHovered] = useState(false)
+
+    // Physics state
+    const originalPos = useMemo(() => new THREE.Vector3(...position), [position])
+    const currentPos = useMemo(() => new THREE.Vector3(...position), [position])
+    const velocity = useMemo(() => new THREE.Vector3(0, 0, 0), [])
+
+    useFrame((state) => {
+        if (!meshRef.current) return
+
+        // Mouse interaction
+        // Project mouse to world at z=0 (text plane)
+        const vec = new THREE.Vector3(state.pointer.x, state.pointer.y, 0)
+        vec.unproject(state.camera)
+        const dir = vec.sub(state.camera.position).normalize()
+        const distance = -state.camera.position.z / dir.z
+        const mouseWorld = state.camera.position.clone().add(dir.multiplyScalar(distance))
+
+        // 2D distance check (since text is roughly at z=-2, let's approximate or just use mouseWorld)
+        // Adjust mouseWorld to match text plane approx z=-2
+        // Actually, unproject logic above finds intersection with arbitrary depth? 
+        // Let's simpler: Map normalized pointer (-1to1) to view bounds at depth -2
+        // Viewport width at depth -2...
+
+        // Simpler approach: Standard repulsion
+        const dist = mouseWorld.distanceTo(currentPos)
+        const repulsionRadius = 2.0
+        const force = new THREE.Vector3(0, 0, 0)
+
+        if (dist < repulsionRadius) {
+            const pushDir = currentPos.clone().sub(mouseWorld).normalize()
+            force.add(pushDir.multiplyScalar(0.5)) // Push strength
+        }
+
+        // Spring force (return home)
+        const springK = 0.1
+        const damping = 0.9
+        const homeDir = originalPos.clone().sub(currentPos)
+        force.add(homeDir.multiplyScalar(springK))
+
+        // Update physics
+        velocity.add(force)
+        velocity.multiplyScalar(damping) // Drag
+        currentPos.add(velocity)
+
+        // Apply
+        meshRef.current.position.copy(currentPos)
+
+        // Simple rotation based on velocity for fun
+        meshRef.current.rotation.z = -velocity.x * 0.5
+        meshRef.current.rotation.y = velocity.x * 0.2
+    })
+
+    return (
+        <Text
+            ref={meshRef}
+            position={position}
+            fontSize={1.5}
+            color="#ffff00"
+            font="https://fonts.gstatic.com/s/sharetechmono/v15/J7aHnp1uDWRCCmbxrcUJ5ue95n5o.woff"
+            anchorX="center"
+            anchorY="middle"
+        >
+            {char}
+            <meshBasicMaterial toneMapped={false} color={new THREE.Color(2, 2, 0)} />
+        </Text>
+    )
+}
 
 export default function Finale() {
     const pointsRef = useRef<THREE.Points>(null)
+
+    useEffect(() => {
+        console.log("FINALE COMPONENT MOUNTED")
+    }, [])
 
     // Create Explosion Particles
     const { positions, velocities, colors } = useMemo(() => {
@@ -45,16 +120,6 @@ export default function Finale() {
         const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute
         const positions = posAttr.array as Float32Array
 
-        // Physics simulation
-        // Since we can't easily modify buffer attributes in a loop in JS without perf hit, 
-        // usually we use shaders. But for 5000 points it's okay-ish.
-        // Or we just let them expand uniformly via scale.
-        // Let's use scale for performance + simple shake.
-
-        // pointsRef.current.scale.multiplyScalar(1.05)
-        // Actually, let's just make them explode outward in shader or simple JS loop?
-        // JS loop for 5000 is fine.
-
         for (let i = 0; i < 5000; i++) {
             // Drag
             velocities[i * 3] *= 0.95
@@ -69,8 +134,14 @@ export default function Finale() {
         posAttr.needsUpdate = true
     })
 
+    const message = "HAPPY BIRTHDAY MOM"
+    // Calculate layout manually roughly
+    // "HAPPY BIRTHDAY" on top
+    // "MOM" below
+
     return (
         <group>
+            {/* Confetti */}
             <points ref={pointsRef}>
                 <bufferGeometry>
                     <bufferAttribute
@@ -89,19 +160,36 @@ export default function Finale() {
                 <pointsMaterial vertexColors size={0.1} sizeAttenuation transparent opacity={0.8} blending={THREE.AdditiveBlending} />
             </points>
 
-            {/* Giant Text */}
+            {/* Sanity Check Mesh - if text fails, this should be visible */}
+            <mesh position={[0, -3, 0]}>
+                <boxGeometry args={[0.5, 0.5, 0.5]} />
+                <meshBasicMaterial color="red" wireframe />
+            </mesh>
+
+            {/* Giant Interactive Text */}
             <group position={[0, 0, -2]}>
-                <Text
-                    fontSize={2}
-                    color="#ffff00"
-                    textAlign="center"
-                    anchorX="center"
-                    anchorY="middle"
-                    font="https://fonts.gstatic.com/s/sharetechmono/v15/J7aHnp1uDWRCCmbxrcUJ5ue95n5o.woff"
-                >
-                    HAPPY BIRTHDAY{'\n'}MOM
-                    <meshBasicMaterial toneMapped={false} />
-                </Text>
+                {/* HAPPY BIRTHDAY */}
+                {/* Spacing approx 1.0 per char? */}
+                {/* "HAPPY BIRTHDAY" is 14 chars. Start x = -7 */}
+                {Array.from("HAPPY BIRTHDAY").map((char, i) => (
+                    <PhysicsLetter
+                        key={`line1-${i}`}
+                        char={char}
+                        position={[(i - 6.5) * 1.1, 1, 0]}
+                        offset={i}
+                    />
+                ))}
+
+                {/* MOM */}
+                {/* "MOM" is 3 chars. Start x = -1.5 */}
+                {Array.from("MOM").map((char, i) => (
+                    <PhysicsLetter
+                        key={`line2-${i}`}
+                        char={char}
+                        position={[(i - 1) * 1.5, -1.5, 0]}
+                        offset={i + 20}
+                    />
+                ))}
             </group>
         </group>
     )

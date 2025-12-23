@@ -2,18 +2,23 @@
 
 import { Canvas, useFrame } from '@react-three/fiber'
 import { ScrollControls, useScroll } from '@react-three/drei'
-import { Suspense, useRef } from 'react'
+import { Suspense, useRef, useEffect } from 'react'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { useStore } from '@/store/store'
 import IntroSequence from './IntroSequence'
 import HeartCore from './HeartCore'
 import Overlay from './Overlay'
 import Finale from './Finale'
+import NeuralBackground from './NeuralBackground'
+import DataNodes from './DataNodes'
+import SoundManager from './SoundManager'
 import * as THREE from 'three'
 
 function MainStage() {
     const scroll = useScroll()
     const groupRef = useRef<THREE.Group>(null)
+
+    const setStage = useStore((state) => state.setStage)
 
     useFrame((state, delta) => {
         // Scroll interaction: Rotate the heart group based on scroll offset
@@ -23,6 +28,18 @@ function MainStage() {
             groupRef.current.rotation.y = r
         }
     })
+
+    // Debug: Hotkey to skip to Finale
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'f' || e.key === 'F') {
+                console.log("Forcing Finale via Hotkey")
+                setStage('FINALE')
+            }
+        }
+        window.addEventListener('keydown', handleKey)
+        return () => window.removeEventListener('keydown', handleKey)
+    }, [setStage])
 
     return (
         <group ref={groupRef}>
@@ -52,13 +69,17 @@ function SceneContent() {
             {stage === 'MAIN_STAGE' && (
                 <ScrollControls pages={4} damping={0.2}>
                     {/* The 3D Scene */}
+                    <NeuralBackground />
                     <MainStage />
+                    <DataNodes />
                     {/* The HTML Overlay */}
                     <Overlay />
                 </ScrollControls>
             )}
 
             {stage === 'FINALE' && <Finale />}
+
+            <SoundManager />
         </>
     )
 }
