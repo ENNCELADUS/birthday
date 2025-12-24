@@ -3,6 +3,7 @@ import { useFrame, extend } from '@react-three/fiber'
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
 import * as random from 'maath/random'
+import { useStore } from '@/store/store'
 
 // Custom Shader Material for Heart Particles
 const HeartMaterial = shaderMaterial(
@@ -151,24 +152,44 @@ export default function HeartCore() {
         }
     })
 
+    const setHoverState = useStore((state) => state.setHoverState)
+    const setHoverLabel = useStore((state) => state.setHoverLabel)
+
     return (
-        <points>
-            <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={positions.length / 3}
-                    array={positions}
-                    itemSize={3}
-                />
-                <bufferAttribute
-                    attach="attributes-aRandom"
-                    count={randomness.length}
-                    array={randomness}
-                    itemSize={1}
-                />
-            </bufferGeometry>
-            {/* @ts-ignore */}
-            <heartMaterial ref={materialRef} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
-        </points>
+        <group>
+            <points>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        count={positions.length / 3}
+                        array={positions}
+                        itemSize={3}
+                    />
+                    <bufferAttribute
+                        attach="attributes-aRandom"
+                        count={randomness.length}
+                        array={randomness}
+                        itemSize={1}
+                    />
+                </bufferGeometry>
+                {/* @ts-ignore */}
+                <heartMaterial ref={materialRef} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+            </points>
+
+            {/* Hidden interaction shell */}
+            <mesh
+                onPointerOver={() => {
+                    setHoverState('INTERACTABLE')
+                    setHoverLabel('// CONNECT')
+                }}
+                onPointerOut={() => {
+                    setHoverState('DEFAULT')
+                    setHoverLabel(null)
+                }}
+            >
+                <sphereGeometry args={[2.5, 32, 32]} />
+                <meshBasicMaterial transparent opacity={0} />
+            </mesh>
+        </group>
     )
 }

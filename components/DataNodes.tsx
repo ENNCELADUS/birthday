@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import './shaders/HologramMaterials'
+import { useStore } from '@/store/store'
 
 function PulseLine({ start, end, color }: { start: [number, number, number], end: [number, number, number], color: string }) {
     const matRef = useRef<any>(null)
@@ -42,6 +43,9 @@ function NodeMesh({ position, color = "#00ffff", delay = 0 }: { position: [numbe
     const ringRef = useRef<any>(null)
     const flareRef = useRef<any>(null)
 
+    const setHoverState = useStore((state) => state.setHoverState)
+    const setHoverLabel = useStore((state) => state.setHoverLabel)
+
     useFrame((state) => {
         if (!groupRef.current) return
         const t = state.clock.elapsedTime + delay
@@ -58,7 +62,18 @@ function NodeMesh({ position, color = "#00ffff", delay = 0 }: { position: [numbe
     })
 
     return (
-        <group ref={groupRef}>
+        <group
+            ref={groupRef}
+            onPointerOver={(e) => {
+                e.stopPropagation()
+                setHoverState('INTERACTABLE')
+                setHoverLabel('// ARCHIVE_DATA')
+            }}
+            onPointerOut={() => {
+                setHoverState('DEFAULT')
+                setHoverLabel(null)
+            }}
+        >
             {/* Connection back to center (Heart) */}
             <PulseLine start={[0, 0, 0]} end={[-position[0], -position[1], -position[2]]} color={color} />
 

@@ -14,6 +14,7 @@ import NeuralBackground from './NeuralBackground'
 import DataNodes from './DataNodes'
 import SoundManager from './SoundManager'
 import * as THREE from 'three'
+import HUDScrollIndicator from './HUDScrollIndicator'
 
 function MainStage() {
     const scroll = useScroll()
@@ -87,14 +88,21 @@ function SceneContent() {
     )
 }
 
+
 export default function Experience() {
+    const stage = useStore((state) => state.stage)
+
     return (
-        <Canvas
-            camera={{ position: [0, 0, 5], fov: 75 }}
-            dpr={[1, 2]}
-            gl={{ antialias: false, alpha: false }}
-        >
-            <SceneContent />
-        </Canvas>
+        <div className="w-full h-full relative">
+            <Canvas
+                camera={{ position: [0, 0, 5], fov: 75 }}
+                dpr={[1, 2]}
+                gl={{ antialias: false, alpha: false }}
+            >
+                <SceneContent />
+            </Canvas>
+
+            {stage === 'MAIN_STAGE' && <HUDScrollIndicator />}
+        </div>
     )
 }

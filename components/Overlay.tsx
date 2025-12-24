@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useState } from 'react'
 import { TypewriterKeys } from './Typewriter'
 import { useStore } from '@/store/store'
+import SynapticButton from './SynapticButton'
 
 const Section = (props: any) => {
     return (
@@ -67,16 +68,13 @@ export default function Overlay() {
                 </Section>
 
                 <Section opacity={1}>
-                    <div className="text-center w-full">
-                        <button
+                    <div className="flex justify-center w-full">
+                        <SynapticButton
                             onClick={() => {
                                 console.log("EXECUTE BUTTON CLICKED")
                                 setStage('FINALE')
                             }}
-                            className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-8 rounded animate-pulse shadow-[0_0_20px_rgba(255,0,0,0.5)] border border-red-400 cursor-pointer pointer-events-auto relative z-[100]"
-                        >
-                            [ EXECUTE: CAKE.EXE ]
-                        </button>
+                        />
                     </div>
                 </Section>
             </div>
