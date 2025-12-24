@@ -2,19 +2,16 @@ import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
-import { ParticleShader, ShockwaveShader } from './shaders/SingularityShaders'
+import { ParticleShader } from './shaders/SingularityShaders'
 import { CakeReactor } from './CakeReactor'
 import { PhotonBeam } from './PhotonBeam'
 
-type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT' | 'IGNITION' | 'SINGULARITY' | 'MESSAGE'
+type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT'
 
 const PHASE_DURATIONS = {
     IMPLOSION: 1.0,
     VOID: 0.5,
     CONSTRUCT: 3.0,
-    IGNITION: 2.0,
-    SINGULARITY: 2.0,
-    MESSAGE: 12.0, // Extended for elegant snap
 }
 
 // Utility to sample points from text using an offscreen canvas
@@ -147,7 +144,8 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
             materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime()
             materialRef.current.uniforms.uProgress.value = progress
             materialRef.current.uniforms.uTransition.value = transition
-            materialRef.current.uniforms.uPhase.value = phase === 'SINGULARITY' ? 1 : (phase === 'MESSAGE' ? 2 : 0)
+            // Show message (phase 2 in shader) when in CONSTRUCT phase
+            materialRef.current.uniforms.uPhase.value = phase === 'CONSTRUCT' ? 2 : 0
         }
     })
 
@@ -175,31 +173,12 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
     )
 }
 
-function SonicBoom({ progress }: { progress: number }) {
-    return (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 8, 0]}>
-            <planeGeometry args={[100, 100]} />
-            <shaderMaterial
-                transparent
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-                vertexShader={ShockwaveShader.vertexShader}
-                fragmentShader={ShockwaveShader.fragmentShader}
-                uniforms={{
-                    uTime: { value: 0 },
-                    uProgress: { value: progress },
-                    uColor: { value: new THREE.Color('#ffcc33') }
-                }}
-            />
-        </mesh>
-    )
-}
+
 
 export default function Finale() {
     const [phase, setPhase] = useState<AnimationPhase>('IMPLOSION')
     const [progress, setProgress] = useState(0)
     const [transition, setTransition] = useState(0)
-    const [isOverclocked, setIsOverclocked] = useState(false)
     const startTimeRef = useRef<number>(0)
     const phaseStartTimeRef = useRef<number>(0)
     const { clock } = useThree()
@@ -210,29 +189,17 @@ export default function Finale() {
         phaseStartTimeRef.current = startTimeRef.current
 
         const initPoints = async () => {
+            // Text offsets for above the cake
+            // Cake matches at roughly y=0 to y=-2 world logic in original, actually centered at -2
+            // We want text at y ~ 3-5
             const points = await sampleTextPoints([
-                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 8.0 },
-                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -8.0 }
+                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 16.0 },
+                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: 12.0 }
             ], 25000);
             setMessagePoints(points);
         }
         initPoints();
     }, [])
-
-    const handleLaunch = () => {
-        if (phase === 'CONSTRUCT' && !isOverclocked) {
-            setIsOverclocked(true)
-            dispatchAudio('ignition')
-            setTimeout(() => {
-                setPhase('IGNITION')
-                phaseStartTimeRef.current = clock.getElapsedTime()
-            }, 500)
-        }
-    }
-
-    const dispatchAudio = (type: string) => {
-        window.dispatchEvent(new CustomEvent(`audio-${type}`))
-    }
 
     useFrame((state) => {
         const now = state.clock.getElapsedTime()
@@ -254,53 +221,26 @@ export default function Finale() {
         } else if (phase === 'CONSTRUCT') {
             const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.CONSTRUCT)
             setProgress(p)
-        } else if (phase === 'IGNITION') {
-            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.IGNITION)
-            setProgress(p)
-            if (p >= 1) {
-                setPhase('SINGULARITY')
-                phaseStartTimeRef.current = now
-                dispatchAudio('singularity')
-            }
-        } else if (phase === 'SINGULARITY') {
-            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.SINGULARITY)
-            setProgress(p)
-            setTransition(Math.min(1, p * 2))
-            if (p >= 1) {
-                setPhase('MESSAGE')
-                phaseStartTimeRef.current = now
-                dispatchAudio('message')
-            }
-        } else if (phase === 'MESSAGE') {
-            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.MESSAGE)
-            setProgress(p)
-            setTransition(1)
+            // Transition particles to form text as construct builds?
+            // Or maybe after it builds. Let's make them form the text as the cake appears.
+            setTransition(p)
         }
     })
 
     return (
         <group>
-            <color attach="background" args={[phase === 'IMPLOSION' || phase === 'VOID' ? '#000000' : (transition > 0.5 ? '#000000' : '#00050a')]} />
+            <color attach="background" args={['#000000']} />
 
             <SingularityParticles phase={phase} progress={progress} transition={transition} messagePoints={messagePoints} />
 
-            {(phase === 'CONSTRUCT' || phase === 'IGNITION') && (
+            {(phase === 'CONSTRUCT') && (
                 <>
                     <CakeReactor />
-                    <PhotonBeam isOverclocked={isOverclocked} onLaunch={handleLaunch} />
+                    <PhotonBeam />
                 </>
             )}
 
-            {phase === 'SINGULARITY' && <SonicBoom progress={progress} />}
-
-            {phase === 'MESSAGE' && (
-                <group>
-                    <pointLight position={[0, 10, -5]} intensity={8 * progress} color="#ffcc33" distance={25} />
-                    <pointLight position={[0, -5, -5]} intensity={5 * progress} color="#ffaa00" distance={20} />
-                </group>
-            )}
-
-            <ambientLight intensity={phase === 'MESSAGE' ? 0.2 : 0.1} />
+            <ambientLight intensity={0.2} />
         </group>
     )
 }

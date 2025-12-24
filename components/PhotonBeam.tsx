@@ -4,40 +4,18 @@ import * as THREE from 'three'
 import { BeamShader } from './shaders/SingularityShaders'
 import { useStore } from '@/store/store'
 
-export function PhotonBeam({ isOverclocked, onLaunch }: { isOverclocked: boolean, onLaunch?: () => void }) {
+export function PhotonBeam() {
     const meshRef = useRef<THREE.Mesh>(null)
-    const [isHovered, setIsHovered] = useState(false)
-    const setHoverState = useStore((state) => state.setHoverState)
-    const setHoverLabel = useStore((state) => state.setHoverLabel)
 
     useFrame((state) => {
         if (meshRef.current) {
             const material = meshRef.current.material as THREE.ShaderMaterial
             material.uniforms.uTime.value = state.clock.getElapsedTime()
 
-            // Smoothly interpolate intensity - REDUCED
-            const targetIntensity = isOverclocked ? 1.0 : (isHovered ? 0.4 : 0.15)
-            material.uniforms.uIntensity.value = THREE.MathUtils.lerp(
-                material.uniforms.uIntensity.value,
-                targetIntensity,
-                0.1
-            )
+            // Constant intensity
+            material.uniforms.uIntensity.value = 0.15
         }
     })
-
-    const handlePointerOver = () => {
-        if (!isOverclocked) {
-            setIsHovered(true)
-            setHoverState('INTERACTABLE')
-            setHoverLabel('// OVERCLOCK_SYSTEM')
-        }
-    }
-
-    const handlePointerOut = () => {
-        setIsHovered(false)
-        setHoverState('DEFAULT')
-        setHoverLabel(null)
-    }
 
     return (
         <group>
@@ -60,21 +38,8 @@ export function PhotonBeam({ isOverclocked, onLaunch }: { isOverclocked: boolean
                 />
             </mesh>
 
-            {/* Clickable Area */}
-            {!isOverclocked && (
-                <mesh
-                    position={[0, 0, 0]}
-                    onPointerOver={handlePointerOver}
-                    onPointerOut={handlePointerOut}
-                    onClick={() => onLaunch && onLaunch()}
-                >
-                    <cylinderGeometry args={[0.5, 0.5, 4, 16]} />
-                    <meshBasicMaterial transparent opacity={0} />
-                </mesh>
-            )}
-
             {/* Base Glow */}
-            <pointLight position={[0, -2, 0]} intensity={isOverclocked ? 10 : 2} color="#ffffff" distance={10} />
+            <pointLight position={[0, -2, 0]} intensity={2} color="#ffffff" distance={10} />
         </group>
     )
 }
