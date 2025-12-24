@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import { ParticleShader } from './shaders/SingularityShaders'
 import { CakeReactor } from './CakeReactor'
-import { PhotonBeam } from './PhotonBeam'
+
 
 type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT'
 
@@ -236,7 +236,6 @@ export default function Finale() {
             {(phase === 'CONSTRUCT') && (
                 <>
                     <CakeReactor />
-                    <PhotonBeam />
                 </>
             )}
 

@@ -122,18 +122,18 @@ export const ParticleShader = {
             } else if (uPhase < 1.5) { // SHOCKWAVE / GOLD DUST
                 vec3 noise = curlNoise(pos * 0.1 + uTime * 0.05);
                 pos += normalize(pos + noise) * uProgress * 40.0;
-            } else { // MESSAGE / CONSTELLATION - MAGNETIC SNAP
-                float snapProg = smoothstep(0.4, 1.0, uProgress);
-                float snapEase = pow(snapProg, 2.0); // Simpler easing
+            } else { // MESSAGE - PROPER TEXT FORMATION
+                float snapProg = smoothstep(0.0, 1.0, uProgress);
+                float snapEase = pow(snapProg, 2.0);
                 
-                vec3 explodedPos = normalize(position) * 40.0; 
-                vec3 brakedPos = explodedPos * 0.7; 
+                // Transition directly from current position (cloud) to target text
+                vec3 startPos = position; 
                 
                 // Simpler jitter
-                float jitterVal = sin(uTime * 10.0 + aOffset) * 0.05 * snapProg;
+                float jitterVal = sin(uTime * 10.0 + aOffset) * 0.05 * (1.0 - snapProg);
                 vec3 jitter = vec3(jitterVal);
 
-                pos = mix(brakedPos, aTarget + jitter, snapEase);
+                pos = mix(startPos, aTarget + jitter, snapEase);
             }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
