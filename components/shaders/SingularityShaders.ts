@@ -121,32 +121,60 @@ export const ParticleShader = {
                 pos = mix(pos, vec3(0.0), uProgress);
             } else if (uPhase < 1.5) { // SHOCKWAVE / GOLD DUST
                 vec3 noise = curlNoise(pos * 0.1 + uTime * 0.05);
-                pos += normalize(pos + noise) * uProgress * 30.0;
-            } else { // MESSAGE / CONSTELLATION
-                vec3 noise = curlNoise(pos * 0.2 + uTime * 0.05) * 0.5;
-                vec3 explodedPos = normalize(position) * 30.0;
-                pos = mix(explodedPos + noise * 5.0, aTarget, pow(uProgress, 1.2));
+                pos += normalize(pos + noise) * uProgress * 40.0;
+            } else { // MESSAGE / CONSTELLATION - MAGNETIC SNAP
+                // uProgress here represents the progress INTO the message phase
+                // We split this into internal phases: 
+                // 0.0-0.3: Explosion (fast)
+                // 0.3-0.5: Braking (friction)
+                // 0.5-1.0: Formation (Magnetic Snap)
+                
+                float explosionProg = smoothstep(0.0, 0.3, uProgress);
+                float brakeProg = smoothstep(0.3, 0.5, uProgress);
+                float snapProg = smoothstep(0.5, 1.0, uProgress);
+                
+                // Optimized Easing for "Elegant Snap"
+                float snapEase = pow(snapProg, 2.5); 
+                
+                vec3 explodedPos = normalize(position) * 35.0;
+                vec3 brakedPos = explodedPos * (1.0 - brakeProg * 0.5); // Slow down
+                
+                // Add Jitter (0.05 amplitude) once near target
+                vec3 jitter = vec3(
+                    sin(uTime * 20.0 + aOffset) * 0.05,
+                    cos(uTime * 22.0 + aOffset) * 0.05,
+                    sin(uTime * 24.0 + aOffset) * 0.05
+                ) * snapProg;
+
+                pos = mix(brakedPos, aTarget + jitter, snapEase);
             }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            float scale = (300.0 / -mvPosition.z);
-            gl_PointSize = aSize * scale * (1.0 + sin(uTime * 3.0 + aOffset) * 0.3);
+            float scale = (400.0 / -mvPosition.z);
+            
+            // Larger point size for readability in formation
+            float pSize = uPhase > 1.5 ? 4.0 : aSize;
+            gl_PointSize = pSize * scale * (1.0 + sin(uTime * 3.0 + aOffset) * 0.3);
             gl_Position = projectionMatrix * mvPosition;
             
             vAlpha = 1.0;
             if (uPhase > 0.5) {
                 vAlpha = mix(0.7, 1.0, uTransition);
-                // Fade out as they move to target if not yet there
                 if (uPhase > 1.5) {
-                    vAlpha = mix(0.5, 1.0, uProgress);
+                    vAlpha = mix(0.4, 1.0, uProgress);
                 }
             }
 
             vec3 baseColor = mix(uColor1, uColor2, aOffset);
             vec3 goldColor = mix(uGold1, uGold2, aOffset);
-            vColor = mix(baseColor, goldColor, uTransition);
             
-            // Tag some particles as binary for the fragment shader if needed
+            // White-hot highlights for particles in the center of the text
+            if (uPhase > 1.5) {
+                float centerHighlight = 1.0 - distance(aTarget.xy, vec2(0.0)) * 0.05;
+                goldColor = mix(goldColor, vec3(1.0, 0.9, 0.7), clamp(centerHighlight, 0.0, 1.0));
+            }
+
+            vColor = mix(baseColor, goldColor, uTransition);
             vIsBinary = fract(aOffset * 100.0) > 0.8 ? 1.0 : 0.0;
         }
     `,

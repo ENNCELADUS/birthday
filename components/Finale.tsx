@@ -1,30 +1,98 @@
 import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Html, Center, Float, Text } from '@react-three/drei'
-import { getAssetPath } from '@/utils/paths'
-import { ParticleShader, ShockwaveShader, NeonTubeShader } from './shaders/SingularityShaders'
+import { Html } from '@react-three/drei'
+import { ParticleShader, ShockwaveShader } from './shaders/SingularityShaders'
 import { CakeReactor } from './CakeReactor'
 import { PhotonBeam } from './PhotonBeam'
-import { BladeRunnerTerminal } from './BladeRunnerTerminal'
 
 type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT' | 'IGNITION' | 'SINGULARITY' | 'MESSAGE'
 
 const PHASE_DURATIONS = {
     IMPLOSION: 1.0,
     VOID: 0.5,
-    CONSTRUCT: 3.0, // Minimum construct time
+    CONSTRUCT: 3.0,
     IGNITION: 2.0,
     SINGULARITY: 2.0,
-    MESSAGE: 10.0,
+    MESSAGE: 12.0, // Extended for elegant snap
 }
 
-// Font handled via next/font in layout.tsx
+// Utility to sample points from text using an offscreen canvas
+function sampleTextPoints(lines: string[], count: number) {
+    if (typeof document === 'undefined') return [];
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return [];
+
+    canvas.width = 1000;
+    canvas.height = 600;
+
+    // Background
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Style text
+    const fontSize = 100;
+    ctx.font = `bold ${fontSize}px "Share Tech Mono", monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+
+    // Draw lines
+    lines.forEach((line, i) => {
+        ctx.fillText(line, canvas.width / 2, canvas.height / 2 + (i - 1) * 120);
+    });
+
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imgData.data;
+    const validPixels: { x: number, y: number, isEdge: boolean }[] = [];
+
+    // Simple edge detection and pixel collection
+    for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+            const i = (y * canvas.width + x) * 4;
+            if (pixels[i] > 128) {
+                // Check if it's an edge (check neighbors)
+                const isEdge =
+                    x === 0 || x === canvas.width - 1 || y === 0 || y === canvas.height - 1 ||
+                    pixels[i - 4] < 128 || pixels[i + 4] < 128 ||
+                    pixels[i - (canvas.width * 4)] < 128 || pixels[i + (canvas.width * 4)] < 128;
+
+                validPixels.push({ x, y, isEdge });
+            }
+        }
+    }
+
+    const points: THREE.Vector3[] = [];
+    const edgePixels = validPixels.filter(p => p.isEdge);
+    const fillPixels = validPixels.filter(p => !p.isEdge);
+
+    for (let i = 0; i < count; i++) {
+        // 70% Edge Bias
+        const useEdge = Math.random() < 0.7 && edgePixels.length > 0;
+        const pool = useEdge ? edgePixels : (fillPixels.length > 0 ? fillPixels : edgePixels);
+        const pixel = pool[Math.floor(Math.random() * pool.length)];
+
+        if (pixel) {
+            // Map 2D canvas coords to 3D space (-14 to 14 range roughly)
+            points.push(new THREE.Vector3(
+                (pixel.x / canvas.width - 0.5) * 28,
+                (0.5 - pixel.y / canvas.height) * 16,
+                (Math.random() - 0.5) * 0.5
+            ));
+        } else {
+            points.push(new THREE.Vector3(0, 0, 0));
+        }
+    }
+
+    return points;
+}
 
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-    const count = 15000;
+    const count = 120000;
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -116,33 +184,23 @@ export default function Finale() {
     const { clock } = useThree()
     const [messagePoints, setMessagePoints] = useState<THREE.Vector3[]>([])
 
-    // Text is now handled in BladeRunnerTerminal.tsx
-
     useEffect(() => {
         startTimeRef.current = clock.getElapsedTime()
         phaseStartTimeRef.current = startTimeRef.current
 
-        // Generate cluster targets for background data particles
-        const points: THREE.Vector3[] = []
-        const numLayers = 2;
-        for (let l = 0; l < numLayers; l++) {
-            const y = 1 - l * 2.5
-            for (let i = 0; i < 4000; i++) {
-                points.push(new THREE.Vector3(
-                    (Math.random() - 0.5) * 12,
-                    y + (Math.random() - 0.5) * 1.5,
-                    (Math.random() - 0.5) * 2
-                ))
-            }
-        }
-        setMessagePoints(points)
+        // Sample text for particles
+        const points = sampleTextPoints([
+            "[ SYSTEM_UPTIME : 50 YEARS ]",
+            "[ CORE_STABILITY : PERFECT ]",
+            "[ HAPPY BIRTHDAY, MOTHER ]"
+        ], 120000);
+        setMessagePoints(points);
     }, [])
 
     const handleLaunch = () => {
         if (phase === 'CONSTRUCT' && !isOverclocked) {
             setIsOverclocked(true)
             dispatchAudio('ignition')
-            // Delay slightly before switching to IGNITION phase to let intensity build
             setTimeout(() => {
                 setPhase('IGNITION')
                 phaseStartTimeRef.current = clock.getElapsedTime()
@@ -156,7 +214,6 @@ export default function Finale() {
 
     useFrame((state) => {
         const now = state.clock.getElapsedTime()
-        const totalElapsed = now - startTimeRef.current
         const phaseElapsed = now - phaseStartTimeRef.current
 
         if (phase === 'IMPLOSION') {
@@ -175,7 +232,6 @@ export default function Finale() {
         } else if (phase === 'CONSTRUCT') {
             const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.CONSTRUCT)
             setProgress(p)
-            // Stays here until handleLaunch is called
         } else if (phase === 'IGNITION') {
             const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.IGNITION)
             setProgress(p)
@@ -202,7 +258,7 @@ export default function Finale() {
 
     return (
         <group>
-            <color attach="background" args={[phase === 'IMPLOSION' || phase === 'VOID' ? '#000000' : (transition > 0.5 ? '#0a0500' : '#00050a')]} />
+            <color attach="background" args={[phase === 'IMPLOSION' || phase === 'VOID' ? '#000000' : (transition > 0.5 ? '#000000' : '#00050a')]} />
 
             <SingularityParticles phase={phase} progress={progress} transition={transition} messagePoints={messagePoints} />
 
@@ -216,15 +272,10 @@ export default function Finale() {
             {phase === 'SINGULARITY' && <SonicBoom progress={progress} />}
 
             {phase === 'MESSAGE' && (
-                <Html fullscreen>
-                    <BladeRunnerTerminal />
-
-                    {/* Volumetric atmosphere (God Rays simulated via point lights) remains in 3D */}
-                    <group>
-                        <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
-                        <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
-                    </group>
-                </Html>
+                <group>
+                    <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
+                    <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
+                </group>
             )}
 
             <ambientLight intensity={phase === 'MESSAGE' ? 0.3 : 0.1} />
