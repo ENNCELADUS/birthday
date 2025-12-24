@@ -211,8 +211,8 @@ export default function Finale() {
 
         const initPoints = async () => {
             const points = await sampleTextPoints([
-                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 16.0 },
-                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -16.0 }
+                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 8.0 },
+                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -8.0 }
             ], 25000);
             setMessagePoints(points);
         }
