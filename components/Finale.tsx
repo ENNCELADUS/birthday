@@ -14,107 +14,13 @@ const PHASE_DURATIONS = {
     CONSTRUCT: 3.0,
 }
 
-// Utility to sample points from text using an offscreen canvas
-async function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCount: number) {
-    if (typeof document === 'undefined') return [];
-
-    // Load Local Font - Try generic path first for localhost
-    const font = new FontFace('NotoSansSC', 'url(/fonts/NotoSansSC.ttf)');
-    try {
-        await font.load();
-        document.fonts.add(font);
-        console.log("Loaded /fonts/NotoSansSC.ttf");
-    } catch (e) {
-        // Fallback for GH Pages path
-        const font2 = new FontFace('NotoSansSC', 'url(/birthday/fonts/NotoSansSC.ttf)');
-        try {
-            await font2.load();
-            document.fonts.add(font2);
-            console.log("Loaded /birthday/fonts/NotoSansSC.ttf");
-        } catch (e2) {
-            console.warn("Failed to load local font, falling back to monospace", e2);
-        }
-    }
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return [];
-
-    canvas.width = 1600; // Balanced resolution
-    canvas.height = 800;
-
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Style text: Local Font
-    const fontSize = 140;
-    ctx.font = `${fontSize}px "NotoSansSC", monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'white';
-
-    const drawSpacedText = (text: string, x: number, y: number, spacing: number) => {
-        const characters = text.split('');
-        let currentX = x - (ctx.measureText(text).width + (characters.length - 1) * spacing) / 2;
-        characters.forEach(char => {
-            ctx.fillText(char, currentX + ctx.measureText(char).width / 2, y);
-            currentX += ctx.measureText(char).width + spacing;
-        });
-    };
-
-    configs.forEach(config => {
-        const canvasY = canvas.height / 2 - (config.yOffset * 10); // Factor 10 for Spread 80
-        drawSpacedText(config.text, canvas.width / 2, canvasY, 15);
-    });
-
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const pixels = imgData.data;
-    const validPixels: { x: number; y: number; isEdge: boolean }[] = [];
-
-    for (let y = 0; y < canvas.height; y += 3) { // Increased step for performance
-        for (let x = 0; x < canvas.width; x += 3) {
-            const i = (y * canvas.width + x) * 4;
-            if (pixels[i] > 128) {
-                const isEdge =
-                    x === 0 || x === canvas.width - 1 || y === 0 || y === canvas.height - 1 ||
-                    pixels[i - 12] < 128 || pixels[i + 12] < 128 ||
-                    pixels[i - (canvas.width * 12)] < 128 || pixels[i + (canvas.width * 12)] < 128;
-
-                validPixels.push({ x, y, isEdge });
-            }
-        }
-    }
-
-    const points: THREE.Vector3[] = [];
-    const edgePixels = validPixels.filter(p => p.isEdge);
-    const fillPixels = validPixels.filter(p => !p.isEdge);
-
-    for (let i = 0; i < totalCount; i++) {
-        const useEdge = Math.random() < 0.85 && edgePixels.length > 0;
-        const pool = useEdge ? edgePixels : (fillPixels.length > 0 ? fillPixels : edgePixels);
-        const pixel = pool[Math.floor(Math.random() * pool.length)];
-
-        if (pixel) {
-            points.push(new THREE.Vector3(
-                (pixel.x / canvas.width - 0.5) * 80, // Extended Width
-                (0.5 - pixel.y / canvas.height) * 80, // Extended Height (Range +/- 40)
-                (Math.random() - 0.5) * 0.1
-            ));
-        }
-        // Removed 0-point fallback to prevent center clumping
-    }
-
-    return points;
-}
-
-function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
+function SingularityParticles({ phase, progress, transition }: { phase: AnimationPhase, progress: number, transition: number }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
     const count = 5000; // Further reduced for performance
 
-    const { positions, targets, sizes, offsets } = useMemo(() => {
+    const { positions, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
-        const targets = new Float32Array(count * 3)
         const sizes = new Float32Array(count)
         const offsets = new Float32Array(count)
 
@@ -128,26 +34,19 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
             positions[i * 3 + 1] = height
             positions[i * 3 + 2] = r * Math.sin(theta)
 
-            if (messagePoints.length > 0) {
-                const target = messagePoints[i % messagePoints.length]
-                targets[i * 3] = target.x
-                targets[i * 3 + 1] = target.y
-                targets[i * 3 + 2] = target.z
-            }
-
             sizes[i] = 0.05 + Math.random() * 0.1
             offsets[i] = Math.random() * Math.PI * 2
         }
-        return { positions, targets, sizes, offsets }
-    }, [messagePoints])
+        return { positions, sizes, offsets }
+    }, [])
 
     useFrame((state) => {
         if (materialRef.current) {
             materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime()
             materialRef.current.uniforms.uProgress.value = progress
             materialRef.current.uniforms.uTransition.value = transition
-            // Show message (phase 2 in shader) when in CONSTRUCT phase
-            materialRef.current.uniforms.uPhase.value = phase === 'CONSTRUCT' ? 2 : 0
+            // Always ambient phase now
+            materialRef.current.uniforms.uPhase.value = 0
         }
     })
 
@@ -155,7 +54,7 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
         <points>
             <bufferGeometry>
                 <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-                <bufferAttribute attach="attributes-aTarget" count={count} array={targets} itemSize={3} />
+                {/* Removed target attribute as it's no longer used */}
                 <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
                 <bufferAttribute attach="attributes-aOffset" count={count} array={offsets} itemSize={1} />
             </bufferGeometry>
@@ -175,7 +74,31 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
     )
 }
 
+function FinaleOverlay() {
+    return (
+        <Html position={[0, 3.5, 0]} center transform sprite zIndexRange={[100, 0]}>
+            <div className="flex flex-col items-center gap-4 pointer-events-none select-none">
+                <div className="flex items-center gap-4">
+                    <div className="w-1 h-3 bg-cyan-400 animate-pulse" />
+                    <h1 className="text-4xl md:text-6xl font-mono text-cyan-200 tracking-wider"
+                        style={{ textShadow: '0 0 20px rgba(34, 211, 238, 0.5)' }}>
+                        [ SYSTEM UPTIME: 50 YEARS ]
+                    </h1>
+                    <div className="w-1 h-3 bg-cyan-400 animate-pulse" />
+                </div>
 
+                <div className="flex items-center gap-4 mt-2">
+                    <span className="text-cyan-600 text-xl font-mono">{`>>`}</span>
+                    <h2 className="text-3xl md:text-5xl font-mono text-white tracking-widest font-bold"
+                        style={{ textShadow: '0 0 30px rgba(255, 255, 255, 0.8)' }}>
+                        HAPPY BIRTHDAY, MOTHER
+                    </h2>
+                    <span className="text-cyan-600 text-xl font-mono">{`<<`}</span>
+                </div>
+            </div>
+        </Html>
+    )
+}
 
 export default function Finale() {
     const [phase, setPhase] = useState<AnimationPhase>('IMPLOSION')
@@ -184,23 +107,10 @@ export default function Finale() {
     const startTimeRef = useRef<number>(0)
     const phaseStartTimeRef = useRef<number>(0)
     const { clock } = useThree()
-    const [messagePoints, setMessagePoints] = useState<THREE.Vector3[]>([])
 
     useEffect(() => {
         startTimeRef.current = clock.getElapsedTime()
         phaseStartTimeRef.current = startTimeRef.current
-
-        const initPoints = async () => {
-            // Text offsets for above the cake
-            // Cake matches at roughly y=0 to y=-2 world logic in original, actually centered at -2
-            // We want text at y ~ 3-5
-            const points = await sampleTextPoints([
-                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 16.0 },
-                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: 12.0 }
-            ], 5000);
-            setMessagePoints(points);
-        }
-        initPoints();
     }, [])
 
     useFrame((state) => {
@@ -233,11 +143,12 @@ export default function Finale() {
         <group>
             <color attach="background" args={['#000000']} />
 
-            <SingularityParticles phase={phase} progress={progress} transition={transition} messagePoints={messagePoints} />
+            <SingularityParticles phase={phase} progress={progress} transition={transition} />
 
             {(phase === 'CONSTRUCT') && (
                 <>
                     <CakeReactor />
+                    <FinaleOverlay />
                 </>
             )}
 
