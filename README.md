@@ -37,6 +37,10 @@ Run the development server:
 npm run dev
 ```
 
+> [!NOTE]
+> Since the project is configured with a `basePath` for GitHub Pages, you must access the local site at:
+> [http://localhost:3000/birthday](http://localhost:3000/birthday)
+
 ### Deployment
 
 This project is configured for static export and is automatically deployed to **GitHub Pages** via GitHub Actions on every push to the `main` branch.

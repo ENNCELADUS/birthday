@@ -16,7 +16,8 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden; /* Canvas handles scroll */
-  font-family: 'Courier New', Courier, monospace; /* Fallback to monospace initially */
+  /* Modern system font stack - zero online calls */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 /* Hide scrollbar for immersive feel */
