@@ -14,14 +14,7 @@ export default function Home() {
   return (
     <main className="w-full h-screen bg-black cursor-none">
       {/* Debug Jump */}
-      <div className="fixed top-4 left-4 z-[9999] flex gap-2">
-        <button
-          onClick={() => setStage('FINALE')}
-          className="px-3 py-1 bg-red-900/50 text-white border border-red-500 rounded text-xs hover:bg-red-800"
-        >
-          DEBUG: FINALE
-        </button>
-      </div>
+
 
       <CustomCursor />
       <Experience />
