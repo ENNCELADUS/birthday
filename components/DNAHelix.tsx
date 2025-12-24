@@ -1,76 +1,138 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useGLTF } from '@react-three/drei'
 
+/**
+ * DNAHelix Component
+ * Overhauled to meet "High-End" biotech aesthetics:
+ * - Particle-based strands for a "data/ghostly" look
+ * - Wireframe base pairs
+ * - Pulsing heartbeat animation
+ */
 export default function DNAHelix({ opacity = 1 }: { opacity?: number }) {
-    const meshRef = useRef<THREE.InstancedMesh>(null)
+    const pointsRef = useRef<THREE.Points>(null)
+    const backboneRef = useRef<THREE.Group>(null)
 
-    // Generate DNA structure
-    const { positions, colors } = useMemo(() => {
-        const count = 100 // Nucleotide pairs
-        const positions = []
-        const colors = []
-        const colorA = new THREE.Color('#00ffff') // Cyan
-        const colorB = new THREE.Color('#ff00ff') // Magenta
+    // Generate DNA Data
+    const { points, colors, pairs } = useMemo(() => {
+        const count = 400
+        const pointsArray = []
+        const colorsArray = []
+        const pairsArray = []
+
+        const color1 = new THREE.Color('#00ffff') // Cyan
+        const color2 = new THREE.Color('#ff00ff') // Magenta
 
         for (let i = 0; i < count; i++) {
             const t = i / count
-            const angle = t * Math.PI * 10
-            const radius = 1
-            const y = (t - 0.5) * 10 // Height
+            const angle = t * Math.PI * 12 // More twists for complexity
+            const radius = 1.2
+            const y = (t - 0.5) * 8
 
-            // Strand 1
+            // Two strands
             const x1 = Math.cos(angle) * radius
             const z1 = Math.sin(angle) * radius
-
-            // Strand 2 (Offset by PI)
             const x2 = Math.cos(angle + Math.PI) * radius
             const z2 = Math.sin(angle + Math.PI) * radius
 
-            positions.push(x1, y, z1)
-            positions.push(x2, y, z2)
+            // Points for both strands
+            pointsArray.push(x1, y, z1)
+            colorsArray.push(color1.r, color1.g, color1.b)
 
-            // Bridge
-            // We could add points between them, but for now just the strands
+            pointsArray.push(x2, y, z2)
+            colorsArray.push(color2.r, color2.g, color2.b)
 
-            colors.push(colorA.r, colorA.g, colorA.b)
-            colors.push(colorB.r, colorB.g, colorB.b)
+            // Add base pairs periodically
+            if (i % 10 === 0) {
+                pairsArray.push([
+                    new THREE.Vector3(x1, y, z1),
+                    new THREE.Vector3(x2, y, z2)
+                ])
+            }
         }
 
         return {
-            positions: new Float32Array(positions),
-            colors: new Float32Array(colors)
+            points: new Float32Array(pointsArray),
+            colors: new Float32Array(colorsArray),
+            pairs: pairsArray
         }
     }, [])
 
     useFrame((state, delta) => {
-        if (meshRef.current) {
-            meshRef.current.rotation.y += delta * 0.5
+        const time = state.clock.getElapsedTime()
 
-            // Update individual instances if needed (for wave effect)
-            // For now, static geometry simply rotating
+        // Rotate the entire assembly
+        if (pointsRef.current) {
+            pointsRef.current.rotation.y += delta * 0.4
+
+            // Pulse Heartbeat Effect
+            // Uses a smooth sin wave but makes it feel like a pulse (fast in, slow out)
+            const pulse = Math.pow((Math.sin(time * 2.5) * 0.5 + 0.5), 2.0)
+            const baseOpacity = 0.4
+            if (pointsRef.current.material instanceof THREE.PointsMaterial) {
+                pointsRef.current.material.opacity = opacity * (baseOpacity + pulse * 0.6)
+            }
+        }
+
+        if (backboneRef.current) {
+            backboneRef.current.rotation.y += delta * 0.4
         }
     })
 
-    // Set instance matrices
-    useMemo(() => {
-        if (!meshRef.current) return
-        const tempObject = new THREE.Object3D()
-        for (let i = 0; i < positions.length / 3; i++) {
-            tempObject.position.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])
-            tempObject.scale.setScalar(0.1)
-            tempObject.updateMatrix()
-            meshRef.current.setMatrixAt(i, tempObject.matrix)
-            meshRef.current.setColorAt(i, new THREE.Color(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2]))
-        }
-        meshRef.current.instanceMatrix.needsUpdate = true
-    }, [positions, colors]) // Warning: meshRef.current might be null on first render, need simpler approach
-
     return (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, positions.length / 3]}>
-            <sphereGeometry args={[1, 8, 8]} />
-            <meshBasicMaterial transparent opacity={opacity} toneMapped={false} />
-        </instancedMesh>
+        <group>
+            {/* Particle Strands */}
+            <points ref={pointsRef}>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        count={points.length / 3}
+                        array={points}
+                        itemSize={3}
+                    />
+                    <bufferAttribute
+                        attach="attributes-color"
+                        count={colors.length / 3}
+                        array={colors}
+                        itemSize={3}
+                    />
+                </bufferGeometry>
+                <pointsMaterial
+                    size={0.06}
+                    vertexColors
+                    transparent
+                    opacity={opacity}
+                    sizeAttenuation
+                    blending={THREE.AdditiveBlending}
+                    depthWrite={false}
+                />
+            </points>
+
+            {/* Wireframe Base Pairs */}
+            <group ref={backboneRef}>
+                {pairs.map((pair, i) => (
+                    <line key={i}>
+                        <bufferGeometry>
+                            <bufferAttribute
+                                attach="attributes-position"
+                                count={2}
+                                array={new Float32Array([
+                                    pair[0].x, pair[0].y, pair[0].z,
+                                    pair[1].x, pair[1].y, pair[1].z
+                                ])}
+                                itemSize={3}
+                            />
+                        </bufferGeometry>
+                        <lineBasicMaterial
+                            color="#ffffff"
+                            transparent
+                            opacity={opacity * 0.2}
+                            blending={THREE.AdditiveBlending}
+                            depthWrite={false}
+                        />
+                    </line>
+                ))}
+            </group>
+        </group>
     )
 }

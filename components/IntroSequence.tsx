@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { useFrame, extend } from '@react-three/fiber'
 import * as THREE from 'three'
 import { MatrixRainMaterial } from './shaders/MatrixRainMaterial'
@@ -17,6 +17,37 @@ export default function IntroSequence() {
 
     const [showDNA, setShowDNA] = useState(false)
     const [opacity, setOpacity] = useState(1)
+
+    // Generate Character Texture Atlas for the rain (A, T, C, G, 0, 1)
+    const charTexture = useMemo(() => {
+        const canvas = document.createElement('canvas')
+        const size = 128
+        canvas.width = size * 6
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+            ctx.fillStyle = 'black'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            ctx.fillStyle = 'white'
+            ctx.font = `bold ${size * 0.8}px monospace`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+
+            const chars = ['A', 'T', 'C', 'G', '0', '1']
+            chars.forEach((char, i) => {
+                ctx.fillText(char, size * i + size / 2, size / 2)
+            })
+        }
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.minFilter = THREE.LinearFilter
+        return tex
+    }, [])
+
+    useEffect(() => {
+        if (rainRef.current && charTexture) {
+            rainRef.current.uniforms.uTexture.value = charTexture
+        }
+    }, [charTexture])
 
     useEffect(() => {
         // Sequence Timeline
@@ -64,7 +95,7 @@ export default function IntroSequence() {
 
             {/* Text Logs - simple HUD overlay in 3D */}
             {/* Text Logs - simple HUD overlay in 3D */}
-            <group position={[0, 2, -2]}>
+            <group position={[0, 2.8, -2]}>
                 <Text
                     position={[0, 0, 0]}
                     fontSize={0.2}
