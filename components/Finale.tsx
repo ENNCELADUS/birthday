@@ -1,11 +1,12 @@
 import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Text, Float, Center } from '@react-three/drei'
+import { Html, Center, Float, Text } from '@react-three/drei'
 import { getAssetPath } from '@/utils/paths'
 import { ParticleShader, ShockwaveShader, NeonTubeShader } from './shaders/SingularityShaders'
 import { CakeReactor } from './CakeReactor'
 import { PhotonBeam } from './PhotonBeam'
+import { BladeRunnerTerminal } from './BladeRunnerTerminal'
 
 type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT' | 'IGNITION' | 'SINGULARITY' | 'MESSAGE'
 
@@ -18,7 +19,7 @@ const PHASE_DURATIONS = {
     MESSAGE: 10.0,
 }
 
-const CHINESE_FONT = getAssetPath("/fonts/NotoSansSC.ttf");
+// Font handled via next/font in layout.tsx
 
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
@@ -115,18 +116,16 @@ export default function Finale() {
     const { clock } = useThree()
     const [messagePoints, setMessagePoints] = useState<THREE.Vector3[]>([])
 
-    const lines = [
-        `[ 运行时长: 50 年 ]`, // AGE can be refined
-        "[ 生日快乐, 我的根目录 ]"
-    ]
+    // Text is now handled in BladeRunnerTerminal.tsx
 
     useEffect(() => {
         startTimeRef.current = clock.getElapsedTime()
         phaseStartTimeRef.current = startTimeRef.current
 
-        // Generate cluster targets for text
+        // Generate cluster targets for background data particles
         const points: THREE.Vector3[] = []
-        for (let l = 0; l < lines.length; l++) {
+        const numLayers = 2;
+        for (let l = 0; l < numLayers; l++) {
             const y = 1 - l * 2.5
             for (let i = 0; i < 8000; i++) {
                 points.push(new THREE.Vector3(
@@ -217,48 +216,15 @@ export default function Finale() {
             {phase === 'SINGULARITY' && <SonicBoom progress={progress} />}
 
             {phase === 'MESSAGE' && (
-                <group position={[0, -0.5, 0]}>
-                    <Center top position={[0, 1.8, 0]}>
-                        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
-                            <Text font={CHINESE_FONT} fontSize={0.9} color="#ffcc33">
-                                {lines[0]}
-                                <shaderMaterial
-                                    attach="material"
-                                    transparent
-                                    vertexShader={NeonTubeShader.vertexShader}
-                                    fragmentShader={NeonTubeShader.fragmentShader}
-                                    uniforms={{
-                                        uTime: { value: 0 },
-                                        uOpacity: { value: Math.max(0, (progress - 0.1) * 2) },
-                                        uColor: { value: new THREE.Color('#ffcc33') }
-                                    }}
-                                />
-                            </Text>
-                        </Float>
-                    </Center>
-                    <Center bottom position={[0, -0.8, 0]}>
-                        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
-                            <Text font={CHINESE_FONT} fontSize={1.1} color="#ffcc33">
-                                {lines[1]}
-                                <shaderMaterial
-                                    attach="material"
-                                    transparent
-                                    vertexShader={NeonTubeShader.vertexShader}
-                                    fragmentShader={NeonTubeShader.fragmentShader}
-                                    uniforms={{
-                                        uTime: { value: 0 },
-                                        uOpacity: { value: Math.max(0, (progress - 0.3) * 2) },
-                                        uColor: { value: new THREE.Color('#ffcc33') }
-                                    }}
-                                />
-                            </Text>
-                        </Float>
-                    </Center>
+                <Html fullscreen>
+                    <BladeRunnerTerminal />
 
-                    {/* Volumetric atmosphere (God Rays simulated via point lights) */}
-                    <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
-                    <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
-                </group>
+                    {/* Volumetric atmosphere (God Rays simulated via point lights) remains in 3D */}
+                    <group>
+                        <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
+                        <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
+                    </group>
+                </Html>
             )}
 
             <ambientLight intensity={phase === 'MESSAGE' ? 0.3 : 0.1} />

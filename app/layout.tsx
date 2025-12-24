@@ -1,6 +1,13 @@
 // @ts-ignore
 import { Metadata } from 'next'
+import { Share_Tech_Mono } from 'next/font/google'
 import "./globals.css";
+
+const shareTechMono = Share_Tech_Mono({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-share-tech-mono',
+})
 
 export const metadata: Metadata = {
   title: "Project M.O.M.",
@@ -14,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased font-sans">
+      <body className={`${shareTechMono.variable} antialiased font-sans`}>
         {children}
       </body>
     </html>
