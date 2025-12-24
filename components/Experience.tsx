@@ -3,7 +3,8 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { ScrollControls, useScroll } from '@react-three/drei'
 import { Suspense, useRef, useEffect } from 'react'
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, Glitch, Noise } from '@react-three/postprocessing'
+import { GlitchMode } from 'postprocessing'
 import { useStore } from '@/store/store'
 import IntroSequence from './IntroSequence'
 import HeartCore from './HeartCore'
@@ -36,9 +37,9 @@ function MainStage() {
         </group>
     )
 }
-
 function SceneContent() {
     const stage = useStore((state) => state.stage)
+    const isGlitching = useStore((state) => state.isGlitching)
 
     return (
         <>
@@ -51,6 +52,15 @@ function SceneContent() {
                     intensity={0.8}
                     radius={0.4}
                 />
+                <Glitch
+                    delay={new THREE.Vector2(0.1, 0.3)}
+                    duration={new THREE.Vector2(0.1, 0.2)}
+                    strength={new THREE.Vector2(0.2, 0.4)}
+                    mode={GlitchMode.SPORADIC}
+                    active={isGlitching}
+                    ratio={0.85}
+                />
+                <Noise opacity={0.05} />
             </EffectComposer>
 
             <Suspense fallback={null}>

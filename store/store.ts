@@ -7,6 +7,8 @@ interface AppState {
   setStage: (stage: Stage) => void
   introFinished: boolean
   setIntroFinished: (finished: boolean) => void
+  isGlitching: boolean
+  setIsGlitching: (glitching: boolean) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -14,4 +16,6 @@ export const useStore = create<AppState>((set) => ({
   setStage: (stage) => set({ stage }),
   introFinished: false,
   setIntroFinished: (finished) => set({ introFinished: finished }),
+  isGlitching: false,
+  setIsGlitching: (isGlitching) => set({ isGlitching }),
 }))
