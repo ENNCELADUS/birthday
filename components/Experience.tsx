@@ -49,9 +49,9 @@ function SceneContent() {
 
             <EffectComposer>
                 <Bloom
-                    luminanceThreshold={0.5}
+                    luminanceThreshold={0.6} // Increased to filter more
                     mipmapBlur
-                    intensity={0.8}
+                    intensity={0.6} // Reduced from 0.8
                     radius={0.4}
                 />
                 <Glitch

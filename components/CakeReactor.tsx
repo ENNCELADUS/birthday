@@ -14,13 +14,12 @@ export function CakeReactor() {
         { radius: 0.6, height: 0.3, color: '#00ffff', speed: 0.9, y: 0.4 },
     ]
 
-    // "Digital Liquid" particles dripping upward
-    const particleCount = 200
+    // Reduced particle count
+    const particleCount = 100
     const [positions, offsets] = useMemo(() => {
         const pos = new Float32Array(particleCount * 3)
         const off = new Float32Array(particleCount)
         for (let i = 0; i < particleCount; i++) {
-            // Randomly pick a tier radius for emission
             const tier = tiers[Math.floor(Math.random() * tiers.length)]
             const angle = Math.random() * Math.PI * 2
             pos[i * 3] = Math.cos(angle) * tier.radius
@@ -45,9 +44,7 @@ export function CakeReactor() {
         if (liquidParticlesRef.current) {
             const posArray = liquidParticlesRef.current.geometry.attributes.position.array as Float32Array
             for (let i = 0; i < particleCount; i++) {
-                // Move upward
-                posArray[i * 3 + 1] += 0.01 + Math.sin(time + offsets[i]) * 0.005
-                // Reset if too high
+                posArray[i * 3 + 1] += 0.015
                 if (posArray[i * 3 + 1] > 2) {
                     posArray[i * 3 + 1] = -0.5
                 }
@@ -58,11 +55,10 @@ export function CakeReactor() {
 
     return (
         <group position={[0, -2, 0]}>
-            {/* Holographic Tiers */}
             <group ref={groupRef}>
                 {tiers.map((tier, i) => (
                     <mesh key={i} position={[0, tier.y, 0]}>
-                        <cylinderGeometry args={[tier.radius, tier.radius, tier.height, 32, 1, true]} />
+                        <cylinderGeometry args={[tier.radius, tier.radius, tier.height, 16, 1, true]} />
                         <shaderMaterial
                             transparent
                             depthWrite={false}
@@ -72,19 +68,18 @@ export function CakeReactor() {
                             uniforms={useMemo(() => ({
                                 uTime: { value: 0 },
                                 uColor: { value: new THREE.Color(tier.color) },
-                                uOpacity: { value: 0.6 }
+                                uOpacity: { value: 0.4 } // Reduced opacity
                             }), [tier.color])}
                             key={i}
                         />
                         <mesh position={[0, 0, 0]}>
-                            <cylinderGeometry args={[tier.radius, tier.radius, tier.height, 32, 1, true]} />
-                            <meshBasicMaterial color={tier.color} wireframe transparent opacity={0.3} />
+                            <cylinderGeometry args={[tier.radius, tier.radius, tier.height, 16, 1, true]} />
+                            <meshBasicMaterial color={tier.color} wireframe transparent opacity={0.2} />
                         </mesh>
                     </mesh>
                 ))}
             </group>
 
-            {/* Digital Liquid (Glowing Code Particles) */}
             <points ref={liquidParticlesRef}>
                 <bufferGeometry>
                     <bufferAttribute
@@ -95,16 +90,15 @@ export function CakeReactor() {
                     />
                 </bufferGeometry>
                 <pointsMaterial
-                    size={0.03}
+                    size={0.02}
                     color="#ffffff"
                     transparent
-                    opacity={0.8}
+                    opacity={0.6}
                     blending={THREE.AdditiveBlending}
                 />
             </points>
 
-            {/* Base glow */}
-            <pointLight intensity={2} color="#00ffff" distance={5} />
+            <pointLight intensity={1} color="#00ffff" distance={4} />
         </group>
     )
 }

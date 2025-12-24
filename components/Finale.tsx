@@ -18,27 +18,35 @@ const PHASE_DURATIONS = {
 }
 
 // Utility to sample points from text using an offscreen canvas
-function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCount: number) {
+async function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCount: number) {
     if (typeof document === 'undefined') return [];
+
+    // Load Local Font
+    const font = new FontFace('NotoSansSC', 'url(/birthday/fonts/NotoSansSC.ttf)');
+    try {
+        await font.load();
+        document.fonts.add(font);
+    } catch (e) {
+        console.warn("Failed to load local font, falling back to monospace", e);
+    }
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return [];
 
-    canvas.width = 2000; // Increased resolution
-    canvas.height = 1000;
+    canvas.width = 1600; // Balanced resolution
+    canvas.height = 800;
 
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Style text: Monospace with extra kerning
-    const fontSize = 180;
-    ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
+    // Style text: Local Font
+    const fontSize = 140;
+    ctx.font = `${fontSize}px "NotoSansSC", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'white';
 
-    // Add extra spacing between characters for clarity
     const drawSpacedText = (text: string, x: number, y: number, spacing: number) => {
         const characters = text.split('');
         let currentX = x - (ctx.measureText(text).width + (characters.length - 1) * spacing) / 2;
@@ -49,24 +57,22 @@ function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCou
     };
 
     configs.forEach(config => {
-        // Map 3D Y (e.g. 15) to canvas Y
-        // Canvas is 1000 high, 3D range is roughly -20 to 20
-        const canvasY = canvas.height / 2 - (config.yOffset * 20);
-        drawSpacedText(config.text, canvas.width / 2, canvasY, 15);
+        const canvasY = canvas.height / 2 - (config.yOffset * 15);
+        drawSpacedText(config.text, canvas.width / 2, canvasY, 10);
     });
 
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imgData.data;
     const validPixels: { x: number; y: number; isEdge: boolean }[] = [];
 
-    for (let y = 0; y < canvas.height; y += 2) { // Step 2 for performance
-        for (let x = 0; x < canvas.width; x += 2) {
+    for (let y = 0; y < canvas.height; y += 3) { // Increased step for performance
+        for (let x = 0; x < canvas.width; x += 3) {
             const i = (y * canvas.width + x) * 4;
             if (pixels[i] > 128) {
                 const isEdge =
                     x === 0 || x === canvas.width - 1 || y === 0 || y === canvas.height - 1 ||
-                    pixels[i - 8] < 128 || pixels[i + 8] < 128 ||
-                    pixels[i - (canvas.width * 8)] < 128 || pixels[i + (canvas.width * 8)] < 128;
+                    pixels[i - 12] < 128 || pixels[i + 12] < 128 ||
+                    pixels[i - (canvas.width * 12)] < 128 || pixels[i + (canvas.width * 12)] < 128;
 
                 validPixels.push({ x, y, isEdge });
             }
@@ -78,15 +84,15 @@ function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCou
     const fillPixels = validPixels.filter(p => !p.isEdge);
 
     for (let i = 0; i < totalCount; i++) {
-        const useEdge = Math.random() < 0.8 && edgePixels.length > 0;
+        const useEdge = Math.random() < 0.85 && edgePixels.length > 0;
         const pool = useEdge ? edgePixels : (fillPixels.length > 0 ? fillPixels : edgePixels);
         const pixel = pool[Math.floor(Math.random() * pool.length)];
 
         if (pixel) {
             points.push(new THREE.Vector3(
-                (pixel.x / canvas.width - 0.5) * 60, // Wider spread
-                (0.5 - pixel.y / canvas.height) * 30, // Taller spread
-                (Math.random() - 0.5) * 0.2
+                (pixel.x / canvas.width - 0.5) * 50,
+                (0.5 - pixel.y / canvas.height) * 25,
+                (Math.random() - 0.5) * 0.1
             ));
         } else {
             points.push(new THREE.Vector3(0, 0, 0));
@@ -99,7 +105,7 @@ function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCou
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-    const count = 40000;
+    const count = 25000; // Balanced performance
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -108,7 +114,7 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
         const offsets = new Float32Array(count)
 
         for (let i = 0; i < count; i++) {
-            const r = 15 + Math.random() * 25
+            const r = 15 + Math.random() * 20
             const theta = Math.random() * Math.PI * 2
             const phi = Math.acos((Math.random() * 2) - 1)
             positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
@@ -122,7 +128,7 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
                 targets[i * 3 + 2] = target.z
             }
 
-            sizes[i] = 0.04 + Math.random() * 0.12
+            sizes[i] = 0.05 + Math.random() * 0.1
             offsets[i] = Math.random() * Math.PI * 2
         }
         return { positions, targets, sizes, offsets }
@@ -164,7 +170,7 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
 function SonicBoom({ progress }: { progress: number }) {
     return (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 8, 0]}>
-            <planeGeometry args={[120, 120]} />
+            <planeGeometry args={[100, 100]} />
             <shaderMaterial
                 transparent
                 depthWrite={false}
@@ -195,12 +201,14 @@ export default function Finale() {
         startTimeRef.current = clock.getElapsedTime()
         phaseStartTimeRef.current = startTimeRef.current
 
-        // Sample text for particles: Split Layout "The Eclipse"
-        const points = sampleTextPoints([
-            { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 12.0 },
-            { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -12.0 }
-        ], 40000);
-        setMessagePoints(points);
+        const initPoints = async () => {
+            const points = await sampleTextPoints([
+                { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 16.0 },
+                { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -16.0 }
+            ], 25000);
+            setMessagePoints(points);
+        }
+        initPoints();
     }, [])
 
     const handleLaunch = () => {
@@ -279,12 +287,12 @@ export default function Finale() {
 
             {phase === 'MESSAGE' && (
                 <group>
-                    <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
-                    <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
+                    <pointLight position={[0, 10, -5]} intensity={8 * progress} color="#ffcc33" distance={25} />
+                    <pointLight position={[0, -5, -5]} intensity={5 * progress} color="#ffaa00" distance={20} />
                 </group>
             )}
 
-            <ambientLight intensity={phase === 'MESSAGE' ? 0.3 : 0.1} />
+            <ambientLight intensity={phase === 'MESSAGE' ? 0.2 : 0.1} />
         </group>
     )
 }

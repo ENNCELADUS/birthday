@@ -123,20 +123,15 @@ export const ParticleShader = {
                 vec3 noise = curlNoise(pos * 0.1 + uTime * 0.05);
                 pos += normalize(pos + noise) * uProgress * 40.0;
             } else { // MESSAGE / CONSTELLATION - MAGNETIC SNAP
-                float explosionProg = smoothstep(0.0, 0.3, uProgress);
-                float brakeProg = smoothstep(0.3, 0.5, uProgress);
-                float snapProg = smoothstep(0.5, 1.0, uProgress);
+                float snapProg = smoothstep(0.4, 1.0, uProgress);
+                float snapEase = pow(snapProg, 2.0); // Simpler easing
                 
-                float snapEase = pow(snapProg, 2.5); 
+                vec3 explodedPos = normalize(position) * 40.0; 
+                vec3 brakedPos = explodedPos * 0.7; 
                 
-                vec3 explodedPos = normalize(position) * 45.0; // Pushed further out
-                vec3 brakedPos = explodedPos * (1.0 - brakeProg * 0.4); 
-                
-                vec3 jitter = vec3(
-                    sin(uTime * 15.0 + aOffset) * 0.08,
-                    cos(uTime * 17.0 + aOffset) * 0.08,
-                    sin(uTime * 19.0 + aOffset) * 0.08
-                ) * snapProg;
+                // Simpler jitter
+                float jitterVal = sin(uTime * 10.0 + aOffset) * 0.05 * snapProg;
+                vec3 jitter = vec3(jitterVal);
 
                 pos = mix(brakedPos, aTarget + jitter, snapEase);
             }

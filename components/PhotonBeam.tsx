@@ -15,8 +15,8 @@ export function PhotonBeam({ isOverclocked, onLaunch }: { isOverclocked: boolean
             const material = meshRef.current.material as THREE.ShaderMaterial
             material.uniforms.uTime.value = state.clock.getElapsedTime()
 
-            // Smoothly interpolate intensity
-            const targetIntensity = isOverclocked ? 1.5 : (isHovered ? 0.5 : 0.2)
+            // Smoothly interpolate intensity - REDUCED
+            const targetIntensity = isOverclocked ? 1.0 : (isHovered ? 0.4 : 0.15)
             material.uniforms.uIntensity.value = THREE.MathUtils.lerp(
                 material.uniforms.uIntensity.value,
                 targetIntensity,
