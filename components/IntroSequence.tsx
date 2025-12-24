@@ -81,7 +81,7 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
-                    font="/fonts/NotoSansSC.ttf"
+                    font={getAssetPath("/fonts/NotoSansSC.ttf")}
                 >
                     {showDNA ? "> 正在挂载线粒体引擎..." : ""}
                 </Text>
@@ -91,7 +91,7 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
-                    font="/fonts/NotoSansSC.ttf"
+                    font={getAssetPath("/fonts/NotoSansSC.ttf")}
                 >
                     {showDNA ? "> 正在同步心跳协议..." : ""}
                 </Text>
