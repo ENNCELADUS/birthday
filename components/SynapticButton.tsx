@@ -62,13 +62,13 @@ export default function SynapticButton({ onClick }: { onClick: () => void }) {
                 className="w-32 h-32 rounded-full border border-cyan-500/50 flex flex-col items-center justify-center z-10 transition-colors duration-300 pointer-events-auto cursor-none group"
             >
                 <div className="text-[10px] opacity-50 mb-1 group-hover:text-red-400 font-mono">
-                    {isHovered ? 'DECODING...' : 'INITIATE'}
+                    {isHovered ? 'SYSTEM_HALT' : 'INITIALIZE'}
                 </div>
                 <div className={`font-bold text-center px-4 leading-tight font-mono ${isHovered ? 'text-red-500' : 'text-cyan-300'}`}>
-                    {isHovered ? 'PROTOCOL_CAKE' : 'LOVE_DUMP.EXE'}
+                    {isHovered ? 'CAKE_PROTOCOL' : 'LIFE_KERNEL.EXE'}
                 </div>
                 <div className="text-[10px] opacity-50 mt-1 group-hover:text-red-400 font-mono">
-                    EXECUTE
+                    [ EXECUTE ]
                 </div>
             </motion.button>
 

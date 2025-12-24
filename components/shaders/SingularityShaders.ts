@@ -4,19 +4,28 @@ export const ParticleShader = {
     uniforms: {
         uTime: { value: 0 },
         uProgress: { value: 0 },
-        uPhase: { value: 0 }, // 0: IMPLOSION, 1: SHOCKWAVE, 2: CONSTELLATION
-        uColor1: { value: new THREE.Color('#ffffff') }, // Gold
-        uColor2: { value: new THREE.Color('#ffcc33') }, // Deep Gold
+        uPhase: { value: 0 }, // 0: IMPLOSION, 1: SHOCKWAVE, 2: MESSAGE
+        uColor1: { value: new THREE.Color('#00ffff') }, // Cyan
+        uColor2: { value: new THREE.Color('#ff00ff') }, // Magenta
+        uGold1: { value: new THREE.Color('#ffcc33') }, // Gold
+        uGold2: { value: new THREE.Color('#ffffff') }, // White Gold
+        uTransition: { value: 0 }, // 0 to 1 for gold transition
         uResolution: { value: new THREE.Vector2() },
     },
     vertexShader: `
         varying vec2 vUv;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vIsBinary;
         
         uniform float uTime;
         uniform float uProgress;
         uniform float uPhase;
+        uniform float uTransition;
+        uniform vec3 uColor1;
+        uniform vec3 uColor2;
+        uniform vec3 uGold1;
+        uniform vec3 uGold2;
         
         attribute vec3 aTarget;
         attribute float aSize;
@@ -110,31 +119,42 @@ export const ParticleShader = {
             
             if (uPhase < 0.5) { // IMPLOSION
                 pos = mix(pos, vec3(0.0), uProgress);
-            } else if (uPhase < 1.5) { // SHOCKWAVE / DUST
-                vec3 noise = curlNoise(pos * 0.2 + uTime * 0.1);
-                pos += normalize(pos + noise) * uProgress * 20.0;
-            } else { // CONSTELLATION
-                // Start from SHOCKWAVE state and move to aTarget
+            } else if (uPhase < 1.5) { // SHOCKWAVE / GOLD DUST
+                vec3 noise = curlNoise(pos * 0.1 + uTime * 0.05);
+                pos += normalize(pos + noise) * uProgress * 30.0;
+            } else { // MESSAGE / CONSTELLATION
                 vec3 noise = curlNoise(pos * 0.2 + uTime * 0.05) * 0.5;
-                vec3 explodedPos = normalize(position) * 20.0;
-                pos = mix(explodedPos + noise * 5.0, aTarget, pow(uProgress, 1.5));
+                vec3 explodedPos = normalize(position) * 30.0;
+                pos = mix(explodedPos + noise * 5.0, aTarget, pow(uProgress, 1.2));
             }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = aSize * (300.0 / -mvPosition.z) * (1.0 + sin(uTime * 2.0 + aOffset) * 0.2);
+            float scale = (300.0 / -mvPosition.z);
+            gl_PointSize = aSize * scale * (1.0 + sin(uTime * 3.0 + aOffset) * 0.3);
             gl_Position = projectionMatrix * mvPosition;
             
             vAlpha = 1.0;
-            if (uPhase > 1.5) {
-                // Glow more as they form text
-                vAlpha = mix(0.6, 1.0, uProgress);
+            if (uPhase > 0.5) {
+                vAlpha = mix(0.7, 1.0, uTransition);
+                // Fade out as they move to target if not yet there
+                if (uPhase > 1.5) {
+                    vAlpha = mix(0.5, 1.0, uProgress);
+                }
             }
+
+            vec3 baseColor = mix(uColor1, uColor2, aOffset);
+            vec3 goldColor = mix(uGold1, uGold2, aOffset);
+            vColor = mix(baseColor, goldColor, uTransition);
+            
+            // Tag some particles as binary for the fragment shader if needed
+            vIsBinary = fract(aOffset * 100.0) > 0.8 ? 1.0 : 0.0;
         }
     `,
     fragmentShader: `
-        uniform vec3 uColor1;
-        uniform vec3 uColor2;
+        varying vec3 vColor;
         varying float vAlpha;
+        varying float vIsBinary;
+        uniform float uTime;
 
         void main() {
             float dist = distance(gl_PointCoord, vec2(0.5));
@@ -143,8 +163,10 @@ export const ParticleShader = {
             float strength = 1.0 - (dist * 2.0);
             strength = pow(strength, 3.0);
             
-            vec3 color = mix(uColor1, uColor2, dist);
-            gl_FragColor = vec4(color, strength * vAlpha);
+            // Simple 0/1 flicker for "binary" particles
+            float binaryFlicker = vIsBinary > 0.5 ? step(0.5, sin(uTime * 10.0 + vIsBinary)) : 1.0;
+            
+            gl_FragColor = vec4(vColor, strength * vAlpha * binaryFlicker);
         }
     `
 }
@@ -153,6 +175,7 @@ export const ShockwaveShader = {
     uniforms: {
         uTime: { value: 0 },
         uProgress: { value: 0 },
+        uColor: { value: new THREE.Color('#ffffff') },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -165,20 +188,120 @@ export const ShockwaveShader = {
         varying vec2 vUv;
         uniform float uTime;
         uniform float uProgress;
+        uniform vec3 uColor;
 
         void main() {
             vec2 center = vec2(0.5);
             float d = distance(vUv, center);
             
-            // Shockwave ring
-            float ringWidth = 0.02;
-            float ringProgress = uProgress * 0.5; // expand from center
-            float ring = smoothstep(ringProgress - ringWidth, ringProgress, d) - 
-                         smoothstep(ringProgress, ringProgress + ringWidth, d);
+            // Multiple rings for "Sonic Boom" effect
+            float ring1 = smoothstep(uProgress - 0.05, uProgress, d) - smoothstep(uProgress, uProgress + 0.05, d);
+            float ring2 = smoothstep(uProgress * 0.8 - 0.03, uProgress * 0.8, d) - smoothstep(uProgress * 0.8, uProgress * 0.8 + 0.03, d);
+            float ring3 = smoothstep(uProgress * 0.6 - 0.02, uProgress * 0.6, d) - smoothstep(uProgress * 0.6, uProgress * 0.6 + 0.02, d);
             
-            if (ring <= 0.0) discard;
+            float combined = ring1 + ring2 * 0.6 + ring3 * 0.3;
+            if (combined <= 0.0) discard;
             
-            gl_FragColor = vec4(1.0, 1.0, 1.0, ring * (1.0 - uProgress) * 0.5);
+            float fade = 1.0 - pow(uProgress, 2.0);
+            gl_FragColor = vec4(uColor, combined * fade * 0.8);
+        }
+    `
+}
+
+export const BeamShader = {
+    uniforms: {
+        uTime: { value: 0 },
+        uIntensity: { value: 0 },
+        uColor: { value: new THREE.Color('#ffffff') },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying float vHeight;
+        void main() {
+            vUv = uv;
+            vHeight = position.y;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vUv;
+        varying float vHeight;
+        uniform float uTime;
+        uniform float uIntensity;
+        uniform vec3 uColor;
+
+        void main() {
+            // Horizontal glow
+            float glow = 1.0 - abs(vUv.x - 0.5) * 2.0;
+            glow = pow(glow, 5.0 + (1.0 - uIntensity) * 10.0);
+            
+            // Vertical flow texture
+            float flow = sin(vHeight * 10.0 - uTime * 20.0) * 0.5 + 0.5;
+            float flicker = uIntensity < 0.9 ? (sin(uTime * 50.0) * 0.3 + 0.7) : 1.0;
+            
+            float finalAlpha = glow * uIntensity * flicker * (0.5 + flow * 0.5);
+            gl_FragColor = vec4(uColor, finalAlpha);
+        }
+    `
+}
+
+export const NeonTubeShader = {
+    uniforms: {
+        uTime: { value: 0 },
+        uOpacity: { value: 0 },
+        uColor: { value: new THREE.Color('#ffcc33') },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform float uOpacity;
+        uniform vec3 uColor;
+
+        void main() {
+            // Simulated gas flickering inside glass tube
+            float flicker = sin(uTime * 30.0 + vUv.x * 10.0) * 0.1 + 0.9;
+            float pulse = sin(uTime * 2.0) * 0.05 + 0.95;
+            
+            gl_FragColor = vec4(uColor, uOpacity * flicker * pulse);
+        }
+    `
+}
+
+export const HologramMaterialShader = {
+    uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color('#00ffff') },
+        uOpacity: { value: 0.5 },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        void main() {
+            vUv = uv;
+            vPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        uniform float uTime;
+        uniform vec3 uColor;
+        uniform float uOpacity;
+
+        void main() {
+            float scanline = sin(vPosition.y * 50.0 - uTime * 10.0) * 0.1 + 0.9;
+            float grid = sin(vUv.x * 100.0) * sin(vUv.y * 100.0);
+            grid = step(0.9, grid) * 0.5 + 0.5;
+            
+            gl_FragColor = vec4(uColor, uOpacity * scanline * grid);
         }
     `
 }

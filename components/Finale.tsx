@@ -1,28 +1,29 @@
 import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Text, Float, useFont, Center } from '@react-three/drei'
+import { Text, Float, Center } from '@react-three/drei'
 import { getAssetPath } from '@/utils/paths'
-import { ParticleShader, ShockwaveShader } from './shaders/SingularityShaders'
-import { useStore } from '@/store/store'
+import { ParticleShader, ShockwaveShader, NeonTubeShader } from './shaders/SingularityShaders'
+import { CakeReactor } from './CakeReactor'
+import { PhotonBeam } from './PhotonBeam'
 
-type AnimationPhase = 'SYSTEM_HALT' | 'IMPLOSION' | 'SHOCKWAVE' | 'CONSTELLATION'
+type AnimationPhase = 'IMPLOSION' | 'VOID' | 'CONSTRUCT' | 'IGNITION' | 'SINGULARITY' | 'MESSAGE'
 
 const PHASE_DURATIONS = {
-    SYSTEM_HALT: 2.0,
-    IMPLOSION: 1.5,
-    SHOCKWAVE: 1.0,
-    CONSTELLATION: 5.0,
+    IMPLOSION: 1.0,
+    VOID: 0.5,
+    CONSTRUCT: 3.0, // Minimum construct time
+    IGNITION: 2.0,
+    SINGULARITY: 2.0,
+    MESSAGE: 10.0,
 }
 
 const CHINESE_FONT = getAssetPath("/fonts/NotoSansSC.ttf");
 
-function SingularityParticles({ phase, progress, messagePoints }: { phase: AnimationPhase, progress: number, messagePoints: THREE.Vector3[] }) {
-    const pointsRef = useRef<THREE.Points>(null)
+function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-
-    const count = 20000;
+    const count = 35000;
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -31,31 +32,23 @@ function SingularityParticles({ phase, progress, messagePoints }: { phase: Anima
         const offsets = new Float32Array(count)
 
         for (let i = 0; i < count; i++) {
-            // Initial positions (scattered in sphere)
-            const r = 5 + Math.random() * 15
+            const r = 15 + Math.random() * 25
             const theta = Math.random() * Math.PI * 2
             const phi = Math.acos((Math.random() * 2) - 1)
-
             positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
             positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
             positions[i * 3 + 2] = r * Math.cos(phi)
 
-            // Targets from messagePoints
             if (messagePoints.length > 0) {
                 const target = messagePoints[i % messagePoints.length]
                 targets[i * 3] = target.x
                 targets[i * 3 + 1] = target.y
                 targets[i * 3 + 2] = target.z
-            } else {
-                targets[i * 3] = positions[i * 3]
-                targets[i * 3 + 1] = positions[i * 3 + 1]
-                targets[i * 3 + 2] = positions[i * 3 + 2]
             }
 
-            sizes[i] = 0.05 + Math.random() * 0.15
+            sizes[i] = 0.04 + Math.random() * 0.12
             offsets[i] = Math.random() * Math.PI * 2
         }
-
         return { positions, targets, sizes, offsets }
     }, [messagePoints])
 
@@ -63,40 +56,18 @@ function SingularityParticles({ phase, progress, messagePoints }: { phase: Anima
         if (materialRef.current) {
             materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime()
             materialRef.current.uniforms.uProgress.value = progress
-            materialRef.current.uniforms.uPhase.value =
-                phase === 'SYSTEM_HALT' ? 0 :
-                    phase === 'IMPLOSION' ? 0 :
-                        phase === 'SHOCKWAVE' ? 1 : 2
+            materialRef.current.uniforms.uTransition.value = transition
+            materialRef.current.uniforms.uPhase.value = phase === 'SINGULARITY' ? 1 : (phase === 'MESSAGE' ? 2 : 0)
         }
     })
 
     return (
-        <points ref={pointsRef}>
+        <points>
             <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={count}
-                    array={positions}
-                    itemSize={3}
-                />
-                <bufferAttribute
-                    attach="attributes-aTarget"
-                    count={count}
-                    array={targets}
-                    itemSize={3}
-                />
-                <bufferAttribute
-                    attach="attributes-aSize"
-                    count={count}
-                    array={sizes}
-                    itemSize={1}
-                />
-                <bufferAttribute
-                    attach="attributes-aOffset"
-                    count={count}
-                    array={offsets}
-                    itemSize={1}
-                />
+                <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+                <bufferAttribute attach="attributes-aTarget" count={count} array={targets} itemSize={3} />
+                <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
+                <bufferAttribute attach="attributes-aOffset" count={count} array={offsets} itemSize={1} />
             </bufferGeometry>
             <shaderMaterial
                 ref={materialRef}
@@ -114,121 +85,183 @@ function SingularityParticles({ phase, progress, messagePoints }: { phase: Anima
     )
 }
 
-function Shockwave({ progress }: { progress: number }) {
-    const meshRef = useRef<THREE.Mesh>(null)
-
+function SonicBoom({ progress }: { progress: number }) {
     return (
-        <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-            <planeGeometry args={[50, 50]} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 8, 0]}>
+            <planeGeometry args={[120, 120]} />
             <shaderMaterial
                 transparent
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
                 vertexShader={ShockwaveShader.vertexShader}
                 fragmentShader={ShockwaveShader.fragmentShader}
-                uniforms={useMemo(() => ({
+                uniforms={{
                     uTime: { value: 0 },
-                    uProgress: { value: progress }
-                }), [progress])}
+                    uProgress: { value: progress },
+                    uColor: { value: new THREE.Color('#ffcc33') }
+                }}
             />
         </mesh>
     )
 }
 
 export default function Finale() {
-    const [phase, setPhase] = useState<AnimationPhase>('SYSTEM_HALT')
+    const [phase, setPhase] = useState<AnimationPhase>('IMPLOSION')
     const [progress, setProgress] = useState(0)
+    const [transition, setTransition] = useState(0)
+    const [isOverclocked, setIsOverclocked] = useState(false)
     const startTimeRef = useRef<number>(0)
-    const { clock, scene } = useThree()
+    const phaseStartTimeRef = useRef<number>(0)
+    const { clock } = useThree()
     const [messagePoints, setMessagePoints] = useState<THREE.Vector3[]>([])
 
-    const setStage = useStore(state => state.setStage)
-
-    // Sample points from text for constellation
     const lines = [
-        "[ 运行时长: 50 年 ]",
-        "[ 感谢你的无限算力 ]",
+        `[ 运行时长: 50 年 ]`, // AGE can be refined
         "[ 生日快乐, 我的根目录 ]"
     ]
 
     useEffect(() => {
         startTimeRef.current = clock.getElapsedTime()
+        phaseStartTimeRef.current = startTimeRef.current
 
-        // Logic to generate points from invisible text
-        // This is a simplified way to get targets for particles
+        // Generate cluster targets for text
         const points: THREE.Vector3[] = []
-        const tempPoints: THREE.Vector3[] = []
-
-        // We use a small hack: create a temporary text geometry to sample from
-        // But since we are in R3F, we'll wait for the font to load and then maybe just use pre-calculated layout or use <Text> properties
+        for (let l = 0; l < lines.length; l++) {
+            const y = 1 - l * 2.5
+            for (let i = 0; i < 8000; i++) {
+                points.push(new THREE.Vector3(
+                    (Math.random() - 0.5) * 12,
+                    y + (Math.random() - 0.5) * 1.5,
+                    (Math.random() - 0.5) * 2
+                ))
+            }
+        }
+        setMessagePoints(points)
     }, [])
 
-    useFrame((state) => {
-        const elapsed = state.clock.getElapsedTime() - startTimeRef.current
+    const handleLaunch = () => {
+        if (phase === 'CONSTRUCT' && !isOverclocked) {
+            setIsOverclocked(true)
+            dispatchAudio('ignition')
+            // Delay slightly before switching to IGNITION phase to let intensity build
+            setTimeout(() => {
+                setPhase('IGNITION')
+                phaseStartTimeRef.current = clock.getElapsedTime()
+            }, 500)
+        }
+    }
 
-        if (elapsed < PHASE_DURATIONS.SYSTEM_HALT) {
-            setPhase('SYSTEM_HALT')
-            setProgress(elapsed / PHASE_DURATIONS.SYSTEM_HALT)
-        } else if (elapsed < PHASE_DURATIONS.SYSTEM_HALT + PHASE_DURATIONS.IMPLOSION) {
-            setPhase('IMPLOSION')
-            setProgress((elapsed - PHASE_DURATIONS.SYSTEM_HALT) / PHASE_DURATIONS.IMPLOSION)
-        } else if (elapsed < PHASE_DURATIONS.SYSTEM_HALT + PHASE_DURATIONS.IMPLOSION + PHASE_DURATIONS.SHOCKWAVE) {
-            setPhase('SHOCKWAVE')
-            setProgress((elapsed - PHASE_DURATIONS.SYSTEM_HALT - PHASE_DURATIONS.IMPLOSION) / PHASE_DURATIONS.SHOCKWAVE)
-        } else {
-            setPhase('CONSTELLATION')
-            const constellationElapsed = elapsed - PHASE_DURATIONS.SYSTEM_HALT - PHASE_DURATIONS.IMPLOSION - PHASE_DURATIONS.SHOCKWAVE
-            setProgress(Math.min(1, constellationElapsed / PHASE_DURATIONS.CONSTELLATION))
+    const dispatchAudio = (type: string) => {
+        window.dispatchEvent(new CustomEvent(`audio-${type}`))
+    }
+
+    useFrame((state) => {
+        const now = state.clock.getElapsedTime()
+        const totalElapsed = now - startTimeRef.current
+        const phaseElapsed = now - phaseStartTimeRef.current
+
+        if (phase === 'IMPLOSION') {
+            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.IMPLOSION)
+            setProgress(p)
+            if (p >= 1) {
+                setPhase('VOID')
+                phaseStartTimeRef.current = now
+            }
+        } else if (phase === 'VOID') {
+            setProgress(0)
+            if (phaseElapsed >= PHASE_DURATIONS.VOID) {
+                setPhase('CONSTRUCT')
+                phaseStartTimeRef.current = now
+            }
+        } else if (phase === 'CONSTRUCT') {
+            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.CONSTRUCT)
+            setProgress(p)
+            // Stays here until handleLaunch is called
+        } else if (phase === 'IGNITION') {
+            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.IGNITION)
+            setProgress(p)
+            if (p >= 1) {
+                setPhase('SINGULARITY')
+                phaseStartTimeRef.current = now
+                dispatchAudio('singularity')
+            }
+        } else if (phase === 'SINGULARITY') {
+            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.SINGULARITY)
+            setProgress(p)
+            setTransition(Math.min(1, p * 2))
+            if (p >= 1) {
+                setPhase('MESSAGE')
+                phaseStartTimeRef.current = now
+                dispatchAudio('message')
+            }
+        } else if (phase === 'MESSAGE') {
+            const p = Math.min(1, phaseElapsed / PHASE_DURATIONS.MESSAGE)
+            setProgress(p)
+            setTransition(1)
         }
     })
 
-    // Hidden text for layout calculation (could use it to sample points)
     return (
         <group>
-            <color attach="background" args={['#00050a']} />
+            <color attach="background" args={[phase === 'IMPLOSION' || phase === 'VOID' ? '#000000' : (transition > 0.5 ? '#0a0500' : '#00050a')]} />
 
-            <SingularityParticles phase={phase} progress={progress} messagePoints={messagePoints} />
+            <SingularityParticles phase={phase} progress={progress} transition={transition} messagePoints={messagePoints} />
 
-            {phase === 'SHOCKWAVE' && <Shockwave progress={progress} />}
+            {(phase === 'CONSTRUCT' || phase === 'IGNITION') && (
+                <>
+                    <CakeReactor />
+                    <PhotonBeam isOverclocked={isOverclocked} onLaunch={handleLaunch} />
+                </>
+            )}
 
-            {/* Hidden Text for reference or to sample from if we had a sampler logic */}
-            {/* For now, we manually define target areas in the shader for simplified "constellation" clustering */}
+            {phase === 'SINGULARITY' && <SonicBoom progress={progress} />}
 
-            <group position={[0, 0, 0]}>
-                {phase === 'CONSTELLATION' && progress > 0.8 && (
-                    <Center top position={[0, 1.5, 0]}>
-                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
+            {phase === 'MESSAGE' && (
+                <group position={[0, -0.5, 0]}>
+                    <Center top position={[0, 1.8, 0]}>
+                        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
+                            <Text font={CHINESE_FONT} fontSize={0.9} color="#ffcc33">
                                 {lines[0]}
-                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.8) * 5} />
+                                <shaderMaterial
+                                    attach="material"
+                                    transparent
+                                    vertexShader={NeonTubeShader.vertexShader}
+                                    fragmentShader={NeonTubeShader.fragmentShader}
+                                    uniforms={{
+                                        uTime: { value: 0 },
+                                        uOpacity: { value: Math.max(0, (progress - 0.1) * 2) },
+                                        uColor: { value: new THREE.Color('#ffcc33') }
+                                    }}
+                                />
                             </Text>
                         </Float>
                     </Center>
-                )}
-                {phase === 'CONSTELLATION' && progress > 0.85 && (
-                    <Center position={[0, 0, 0]}>
-                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
+                    <Center bottom position={[0, -0.8, 0]}>
+                        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.3}>
+                            <Text font={CHINESE_FONT} fontSize={1.1} color="#ffcc33">
                                 {lines[1]}
-                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.85) * 5} />
+                                <shaderMaterial
+                                    attach="material"
+                                    transparent
+                                    vertexShader={NeonTubeShader.vertexShader}
+                                    fragmentShader={NeonTubeShader.fragmentShader}
+                                    uniforms={{
+                                        uTime: { value: 0 },
+                                        uOpacity: { value: Math.max(0, (progress - 0.3) * 2) },
+                                        uColor: { value: new THREE.Color('#ffcc33') }
+                                    }}
+                                />
                             </Text>
                         </Float>
                     </Center>
-                )}
-                {phase === 'CONSTELLATION' && progress > 0.9 && (
-                    <Center bottom position={[0, -1.5, 0]}>
-                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
-                                {lines[2]}
-                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.9) * 5} />
-                            </Text>
-                        </Float>
-                    </Center>
-                )}
-            </group>
 
-            <ambientLight intensity={0.2} />
-            <pointLight position={[0, 0, 5]} intensity={2} color="#ffcc33" />
+                    {/* Volumetric atmosphere (God Rays simulated via point lights) */}
+                    <pointLight position={[0, 10, -5]} intensity={15 * progress} color="#ffcc33" distance={30} />
+                    <pointLight position={[0, -5, -5]} intensity={10 * progress} color="#ffaa00" distance={20} />
+                </group>
+            )}
+
+            <ambientLight intensity={phase === 'MESSAGE' ? 0.3 : 0.1} />
         </group>
     )
 }
