@@ -24,7 +24,7 @@ const PHASE_DURATIONS = {
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-    const count = 35000;
+    const count = 15000;
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -127,7 +127,7 @@ export default function Finale() {
         const numLayers = 2;
         for (let l = 0; l < numLayers; l++) {
             const y = 1 - l * 2.5
-            for (let i = 0; i < 8000; i++) {
+            for (let i = 0; i < 4000; i++) {
                 points.push(new THREE.Vector3(
                     (Math.random() - 0.5) * 12,
                     y + (Math.random() - 0.5) * 1.5,

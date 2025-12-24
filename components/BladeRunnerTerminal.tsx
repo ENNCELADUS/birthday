@@ -28,8 +28,8 @@ const TerminalLine: React.FC<TerminalLineProps> = ({ text, delay, onComplete }) 
             setIsTyping(true);
             const typingInterval = setInterval(() => {
                 if (charIndex < text.length) {
-                    // Glitch logic: 20% chance to show a random character before settling
-                    const shouldGlitch = Math.random() < 0.2;
+                    // Glitch logic: 8% chance to show a random character before settling
+                    const shouldGlitch = Math.random() < 0.08;
                     const nextChar = shouldGlitch
                         ? GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]
                         : text[charIndex];
@@ -81,27 +81,30 @@ export const BladeRunnerTerminal: React.FC = () => {
             <style jsx>{`
         .blade-runner-terminal {
           position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 1000;
-          pointer-events: none;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
-          width: 100%;
-          text-align: center;
+          justify-content: center;
+          align-items: center;
+          gap: 2rem;
+          z-index: 10000;
+          pointer-events: none;
+          background: radial-gradient(circle, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 70%);
           font-family: var(--font-share-tech-mono), monospace;
         }
 
         .terminal-line {
-          font-size: 1.5rem;
+          font-size: 1.8rem;
           color: #ffaa00;
           text-transform: uppercase;
           letter-spacing: 0.5em;
-          text-shadow: 0 0 15px rgba(255, 170, 0, 0.6),
-                       0 0 25px rgba(255, 170, 0, 0.3);
-          line-height: 1.5;
+          text-shadow: 0 0 20px rgba(255, 170, 0, 0.8),
+                       0 0 40px rgba(255, 170, 0, 0.4);
+          line-height: 1.2;
+          text-align: center;
         }
 
         .cursor {
@@ -112,12 +115,12 @@ export const BladeRunnerTerminal: React.FC = () => {
 
         @keyframes glow {
           from { opacity: 0.7; }
-          to { opacity: 1; text-shadow: 0 0 20px #ffaa00; }
+          to { opacity: 1; text-shadow: 0 0 25px #ffaa00; }
         }
 
         @media (min-width: 768px) {
           .terminal-line {
-            font-size: 2.2rem;
+            font-size: 2.8rem;
           }
         }
       `}</style>
