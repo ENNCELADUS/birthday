@@ -110,7 +110,7 @@ async function sampleTextPoints(configs: { text: string; yOffset: number }[], to
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-    const count = 25000; // Balanced performance
+    const count = 10000; // Reduced for performance
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -119,12 +119,14 @@ function SingularityParticles({ phase, progress, transition, messagePoints }: { 
         const offsets = new Float32Array(count)
 
         for (let i = 0; i < count; i++) {
-            const r = 15 + Math.random() * 20
+            // Random cloud distribution instead of sphere
+            const r = Math.random() * 40 // Wide radius
             const theta = Math.random() * Math.PI * 2
-            const phi = Math.acos((Math.random() * 2) - 1)
-            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
-            positions[i * 3 + 2] = r * Math.cos(phi)
+            const height = (Math.random() - 0.5) * 40
+
+            positions[i * 3] = r * Math.cos(theta)
+            positions[i * 3 + 1] = height
+            positions[i * 3 + 2] = r * Math.sin(theta)
 
             if (messagePoints.length > 0) {
                 const target = messagePoints[i % messagePoints.length]
@@ -195,7 +197,7 @@ export default function Finale() {
             const points = await sampleTextPoints([
                 { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 16.0 },
                 { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: 12.0 }
-            ], 25000);
+            ], 10000);
             setMessagePoints(points);
         }
         initPoints();
