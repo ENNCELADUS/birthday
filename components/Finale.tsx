@@ -21,13 +21,22 @@ const PHASE_DURATIONS = {
 async function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCount: number) {
     if (typeof document === 'undefined') return [];
 
-    // Load Local Font
-    const font = new FontFace('NotoSansSC', 'url(/birthday/fonts/NotoSansSC.ttf)');
+    // Load Local Font - Try generic path first for localhost
+    const font = new FontFace('NotoSansSC', 'url(/fonts/NotoSansSC.ttf)');
     try {
         await font.load();
         document.fonts.add(font);
+        console.log("Loaded /fonts/NotoSansSC.ttf");
     } catch (e) {
-        console.warn("Failed to load local font, falling back to monospace", e);
+        // Fallback for GH Pages path
+        const font2 = new FontFace('NotoSansSC', 'url(/birthday/fonts/NotoSansSC.ttf)');
+        try {
+            await font2.load();
+            document.fonts.add(font2);
+            console.log("Loaded /birthday/fonts/NotoSansSC.ttf");
+        } catch (e2) {
+            console.warn("Failed to load local font, falling back to monospace", e2);
+        }
     }
 
     const canvas = document.createElement('canvas');
@@ -57,8 +66,8 @@ async function sampleTextPoints(configs: { text: string; yOffset: number }[], to
     };
 
     configs.forEach(config => {
-        const canvasY = canvas.height / 2 - (config.yOffset * 15);
-        drawSpacedText(config.text, canvas.width / 2, canvasY, 10);
+        const canvasY = canvas.height / 2 - (config.yOffset * 10); // Factor 10 for Spread 80
+        drawSpacedText(config.text, canvas.width / 2, canvasY, 15);
     });
 
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -90,13 +99,12 @@ async function sampleTextPoints(configs: { text: string; yOffset: number }[], to
 
         if (pixel) {
             points.push(new THREE.Vector3(
-                (pixel.x / canvas.width - 0.5) * 50,
-                (0.5 - pixel.y / canvas.height) * 25,
+                (pixel.x / canvas.width - 0.5) * 80, // Extended Width
+                (0.5 - pixel.y / canvas.height) * 80, // Extended Height (Range +/- 40)
                 (Math.random() - 0.5) * 0.1
             ));
-        } else {
-            points.push(new THREE.Vector3(0, 0, 0));
         }
+        // Removed 0-point fallback to prevent center clumping
     }
 
     return points;
