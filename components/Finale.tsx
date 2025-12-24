@@ -18,46 +18,55 @@ const PHASE_DURATIONS = {
 }
 
 // Utility to sample points from text using an offscreen canvas
-function sampleTextPoints(lines: string[], count: number) {
+function sampleTextPoints(configs: { text: string; yOffset: number }[], totalCount: number) {
     if (typeof document === 'undefined') return [];
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return [];
 
-    canvas.width = 1000;
-    canvas.height = 600;
+    canvas.width = 2000; // Increased resolution
+    canvas.height = 1000;
 
-    // Background
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Style text
-    const fontSize = 100;
-    ctx.font = `bold ${fontSize}px "Share Tech Mono", monospace`;
+    // Style text: Monospace with extra kerning
+    const fontSize = 180;
+    ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'white';
 
-    // Draw lines
-    lines.forEach((line, i) => {
-        ctx.fillText(line, canvas.width / 2, canvas.height / 2 + (i - 1) * 120);
+    // Add extra spacing between characters for clarity
+    const drawSpacedText = (text: string, x: number, y: number, spacing: number) => {
+        const characters = text.split('');
+        let currentX = x - (ctx.measureText(text).width + (characters.length - 1) * spacing) / 2;
+        characters.forEach(char => {
+            ctx.fillText(char, currentX + ctx.measureText(char).width / 2, y);
+            currentX += ctx.measureText(char).width + spacing;
+        });
+    };
+
+    configs.forEach(config => {
+        // Map 3D Y (e.g. 15) to canvas Y
+        // Canvas is 1000 high, 3D range is roughly -20 to 20
+        const canvasY = canvas.height / 2 - (config.yOffset * 20);
+        drawSpacedText(config.text, canvas.width / 2, canvasY, 15);
     });
 
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imgData.data;
-    const validPixels: { x: number, y: number, isEdge: boolean }[] = [];
+    const validPixels: { x: number; y: number; isEdge: boolean }[] = [];
 
-    // Simple edge detection and pixel collection
-    for (let y = 0; y < canvas.height; y += 1) {
-        for (let x = 0; x < canvas.width; x += 1) {
+    for (let y = 0; y < canvas.height; y += 2) { // Step 2 for performance
+        for (let x = 0; x < canvas.width; x += 2) {
             const i = (y * canvas.width + x) * 4;
             if (pixels[i] > 128) {
-                // Check if it's an edge (check neighbors)
                 const isEdge =
                     x === 0 || x === canvas.width - 1 || y === 0 || y === canvas.height - 1 ||
-                    pixels[i - 4] < 128 || pixels[i + 4] < 128 ||
-                    pixels[i - (canvas.width * 4)] < 128 || pixels[i + (canvas.width * 4)] < 128;
+                    pixels[i - 8] < 128 || pixels[i + 8] < 128 ||
+                    pixels[i - (canvas.width * 8)] < 128 || pixels[i + (canvas.width * 8)] < 128;
 
                 validPixels.push({ x, y, isEdge });
             }
@@ -68,18 +77,16 @@ function sampleTextPoints(lines: string[], count: number) {
     const edgePixels = validPixels.filter(p => p.isEdge);
     const fillPixels = validPixels.filter(p => !p.isEdge);
 
-    for (let i = 0; i < count; i++) {
-        // 70% Edge Bias
-        const useEdge = Math.random() < 0.7 && edgePixels.length > 0;
+    for (let i = 0; i < totalCount; i++) {
+        const useEdge = Math.random() < 0.8 && edgePixels.length > 0;
         const pool = useEdge ? edgePixels : (fillPixels.length > 0 ? fillPixels : edgePixels);
         const pixel = pool[Math.floor(Math.random() * pool.length)];
 
         if (pixel) {
-            // Map 2D canvas coords to 3D space (-14 to 14 range roughly)
             points.push(new THREE.Vector3(
-                (pixel.x / canvas.width - 0.5) * 28,
-                (0.5 - pixel.y / canvas.height) * 16,
-                (Math.random() - 0.5) * 0.5
+                (pixel.x / canvas.width - 0.5) * 60, // Wider spread
+                (0.5 - pixel.y / canvas.height) * 30, // Taller spread
+                (Math.random() - 0.5) * 0.2
             ));
         } else {
             points.push(new THREE.Vector3(0, 0, 0));
@@ -188,11 +195,10 @@ export default function Finale() {
         startTimeRef.current = clock.getElapsedTime()
         phaseStartTimeRef.current = startTimeRef.current
 
-        // Sample text for particles
+        // Sample text for particles: Split Layout "The Eclipse"
         const points = sampleTextPoints([
-            "[ SYSTEM_UPTIME : 50 YEARS ]",
-            "[ CORE_STABILITY : PERFECT ]",
-            "[ HAPPY BIRTHDAY, MOTHER ]"
+            { text: "[ SYSTEM UPTIME: 50 YEARS ]", yOffset: 12.0 },
+            { text: "[ HAPPY BIRTHDAY, MOTHER ]", yOffset: -12.0 }
         ], 40000);
         setMessagePoints(points);
     }, [])

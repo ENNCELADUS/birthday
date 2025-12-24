@@ -7,8 +7,8 @@ export const ParticleShader = {
         uPhase: { value: 0 }, // 0: IMPLOSION, 1: SHOCKWAVE, 2: MESSAGE
         uColor1: { value: new THREE.Color('#00ffff') }, // Cyan
         uColor2: { value: new THREE.Color('#ff00ff') }, // Magenta
-        uGold1: { value: new THREE.Color('#ffcc33') }, // Gold
-        uGold2: { value: new THREE.Color('#ffffff') }, // White Gold
+        uGold1: { value: new THREE.Color('#FFD700') }, // Gold
+        uGold2: { value: new THREE.Color('#00FFFF') }, // Cyan
         uTransition: { value: 0 }, // 0 to 1 for gold transition
         uResolution: { value: new THREE.Vector2() },
     },
@@ -123,27 +123,19 @@ export const ParticleShader = {
                 vec3 noise = curlNoise(pos * 0.1 + uTime * 0.05);
                 pos += normalize(pos + noise) * uProgress * 40.0;
             } else { // MESSAGE / CONSTELLATION - MAGNETIC SNAP
-                // uProgress here represents the progress INTO the message phase
-                // We split this into internal phases: 
-                // 0.0-0.3: Explosion (fast)
-                // 0.3-0.5: Braking (friction)
-                // 0.5-1.0: Formation (Magnetic Snap)
-                
                 float explosionProg = smoothstep(0.0, 0.3, uProgress);
                 float brakeProg = smoothstep(0.3, 0.5, uProgress);
                 float snapProg = smoothstep(0.5, 1.0, uProgress);
                 
-                // Optimized Easing for "Elegant Snap"
                 float snapEase = pow(snapProg, 2.5); 
                 
-                vec3 explodedPos = normalize(position) * 35.0;
-                vec3 brakedPos = explodedPos * (1.0 - brakeProg * 0.5); // Slow down
+                vec3 explodedPos = normalize(position) * 45.0; // Pushed further out
+                vec3 brakedPos = explodedPos * (1.0 - brakeProg * 0.4); 
                 
-                // Add Jitter (0.05 amplitude) once near target
                 vec3 jitter = vec3(
-                    sin(uTime * 20.0 + aOffset) * 0.05,
-                    cos(uTime * 22.0 + aOffset) * 0.05,
-                    sin(uTime * 24.0 + aOffset) * 0.05
+                    sin(uTime * 15.0 + aOffset) * 0.08,
+                    cos(uTime * 17.0 + aOffset) * 0.08,
+                    sin(uTime * 19.0 + aOffset) * 0.08
                 ) * snapProg;
 
                 pos = mix(brakedPos, aTarget + jitter, snapEase);
@@ -152,26 +144,26 @@ export const ParticleShader = {
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             float scale = (400.0 / -mvPosition.z);
             
-            // Larger point size for readability in formation
-            float pSize = uPhase > 1.5 ? 4.0 : aSize;
-            gl_PointSize = pSize * scale * (1.0 + sin(uTime * 3.0 + aOffset) * 0.3);
+            // INCREASED POINT SIZE for the message
+            float pSize = uPhase > 1.5 ? 5.0 : aSize;
+            gl_PointSize = pSize * scale * (1.1 + sin(uTime * 4.0 + aOffset) * 0.4);
             gl_Position = projectionMatrix * mvPosition;
             
             vAlpha = 1.0;
             if (uPhase > 0.5) {
                 vAlpha = mix(0.7, 1.0, uTransition);
                 if (uPhase > 1.5) {
-                    vAlpha = mix(0.4, 1.0, uProgress);
+                    vAlpha = mix(0.3, 1.0, uProgress);
                 }
             }
 
             vec3 baseColor = mix(uColor1, uColor2, aOffset);
             vec3 goldColor = mix(uGold1, uGold2, aOffset);
             
-            // White-hot highlights for particles in the center of the text
+            // High-energy highlights
             if (uPhase > 1.5) {
-                float centerHighlight = 1.0 - distance(aTarget.xy, vec2(0.0)) * 0.05;
-                goldColor = mix(goldColor, vec3(1.0, 0.9, 0.7), clamp(centerHighlight, 0.0, 1.0));
+                float pulse = 0.5 + 0.5 * sin(uTime * 5.0 + aOffset);
+                goldColor = mix(goldColor, vec3(1.0), pulse * 0.3);
             }
 
             vColor = mix(baseColor, goldColor, uTransition);
@@ -188,13 +180,16 @@ export const ParticleShader = {
             float dist = distance(gl_PointCoord, vec2(0.5));
             if (dist > 0.5) discard;
             
+            // Neon tube glow profile
             float strength = 1.0 - (dist * 2.0);
-            strength = pow(strength, 3.0);
+            float core = pow(strength, 2.0);
+            float glow = pow(strength, 6.0);
             
-            // Simple 0/1 flicker for "binary" particles
-            float binaryFlicker = vIsBinary > 0.5 ? step(0.5, sin(uTime * 10.0 + vIsBinary)) : 1.0;
+            float finalStrength = mix(glow, core, 0.6);
             
-            gl_FragColor = vec4(vColor, strength * vAlpha * binaryFlicker);
+            float binaryFlicker = vIsBinary > 0.5 ? step(0.4, sin(uTime * 15.0 + vIsBinary)) : 1.0;
+            
+            gl_FragColor = vec4(vColor, finalStrength * vAlpha * (0.8 + 0.2 * binaryFlicker));
         }
     `
 }
