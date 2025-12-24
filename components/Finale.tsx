@@ -1,313 +1,234 @@
 import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Text, Float } from '@react-three/drei'
+import { Text, Float, useFont, Center } from '@react-three/drei'
 import { getAssetPath } from '@/utils/paths'
+import { ParticleShader, ShockwaveShader } from './shaders/SingularityShaders'
+import { useStore } from '@/store/store'
 
-type AnimationPhase = 'IMPLOSION' | 'SHOCKWAVE' | 'CRYSTALLIZATION' | 'SOLAR_SYSTEM'
+type AnimationPhase = 'SYSTEM_HALT' | 'IMPLOSION' | 'SHOCKWAVE' | 'CONSTELLATION'
 
 const PHASE_DURATIONS = {
+    SYSTEM_HALT: 2.0,
     IMPLOSION: 1.5,
-    SHOCKWAVE: 0.5,
-    CRYSTALLIZATION: 2.0,
-}
-
-function WireframeLogo({ phase, progress }: { phase: AnimationPhase, progress: number }) {
-    const meshRef = useRef<THREE.Group>(null)
-    const opacity = phase === 'CRYSTALLIZATION' ? progress * 0.5 : phase === 'SOLAR_SYSTEM' ? 0.5 : 0
-
-    useFrame((state) => {
-        if (!meshRef.current) return
-        meshRef.current.rotation.z += 0.01
-        meshRef.current.rotation.y += 0.005
-    })
-
-    if (phase === 'IMPLOSION' || phase === 'SHOCKWAVE') return null
-
-    return (
-        <group ref={meshRef} position={[0, 0, -5.5]}>
-            {[1, 1.5, 2].map((s, i) => (
-                <mesh key={i} scale={[s * 3, s * 3, s * 3]}>
-                    <octahedronGeometry args={[1, 0]} />
-                    <meshBasicMaterial
-                        color="#ff00ff"
-                        wireframe
-                        transparent
-                        opacity={opacity * (1 - i * 0.2)}
-                        toneMapped={false}
-                    />
-                </mesh>
-            ))}
-        </group>
-    )
+    SHOCKWAVE: 1.0,
+    CONSTELLATION: 5.0,
 }
 
 const CHINESE_FONT = getAssetPath("/fonts/NotoSansSC.ttf");
 
-function CrystallizedLetter({ char, position, phase, phaseProgress }: { char: string, position: [number, number, number], phase: AnimationPhase, phaseProgress: number }) {
-    const meshRef = useRef<THREE.Mesh>(null)
-    const [hovered, setHovered] = useState(false)
+function SingularityParticles({ phase, progress, messagePoints }: { phase: AnimationPhase, progress: number, messagePoints: THREE.Vector3[] }) {
+    const pointsRef = useRef<THREE.Points>(null)
+    const materialRef = useRef<THREE.ShaderMaterial>(null)
+    const { size } = useThree()
 
-    // Crystallization effect: fly from a distance or scale up
-    const opacity = phase === 'CRYSTALLIZATION' ? phaseProgress : phase === 'SOLAR_SYSTEM' ? 1 : 0
-    const scale = phase === 'CRYSTALLIZATION' ? 0.8 + phaseProgress * 0.2 : phase === 'SOLAR_SYSTEM' ? 1 : 0
+    const count = 20000;
 
-    // Mouse reaction in SOLAR_SYSTEM phase
+    const { positions, targets, sizes, offsets } = useMemo(() => {
+        const positions = new Float32Array(count * 3)
+        const targets = new Float32Array(count * 3)
+        const sizes = new Float32Array(count)
+        const offsets = new Float32Array(count)
+
+        for (let i = 0; i < count; i++) {
+            // Initial positions (scattered in sphere)
+            const r = 5 + Math.random() * 15
+            const theta = Math.random() * Math.PI * 2
+            const phi = Math.acos((Math.random() * 2) - 1)
+
+            positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
+            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+            positions[i * 3 + 2] = r * Math.cos(phi)
+
+            // Targets from messagePoints
+            if (messagePoints.length > 0) {
+                const target = messagePoints[i % messagePoints.length]
+                targets[i * 3] = target.x
+                targets[i * 3 + 1] = target.y
+                targets[i * 3 + 2] = target.z
+            } else {
+                targets[i * 3] = positions[i * 3]
+                targets[i * 3 + 1] = positions[i * 3 + 1]
+                targets[i * 3 + 2] = positions[i * 3 + 2]
+            }
+
+            sizes[i] = 0.05 + Math.random() * 0.15
+            offsets[i] = Math.random() * Math.PI * 2
+        }
+
+        return { positions, targets, sizes, offsets }
+    }, [messagePoints])
+
     useFrame((state) => {
-        if (phase !== 'SOLAR_SYSTEM' || !meshRef.current) return
-
-        const mouseX = state.pointer.x
-        const mouseY = state.pointer.y
-
-        // Gentle rotation based on mouse
-        meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, mouseX * 0.4, 0.05)
-        meshRef.current.rotation.x = THREE.MathUtils.lerp(meshRef.current.rotation.x, -mouseY * 0.4, 0.05)
-
-        // Slight bobbing
-        meshRef.current.position.y = position[1] + Math.sin(state.clock.getElapsedTime() * 2 + position[0]) * 0.1
+        if (materialRef.current) {
+            materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime()
+            materialRef.current.uniforms.uProgress.value = progress
+            materialRef.current.uniforms.uPhase.value =
+                phase === 'SYSTEM_HALT' ? 0 :
+                    phase === 'IMPLOSION' ? 0 :
+                        phase === 'SHOCKWAVE' ? 1 : 2
+        }
     })
 
-    if (phase === 'IMPLOSION' || phase === 'SHOCKWAVE') return null
+    return (
+        <points ref={pointsRef}>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={count}
+                    array={positions}
+                    itemSize={3}
+                />
+                <bufferAttribute
+                    attach="attributes-aTarget"
+                    count={count}
+                    array={targets}
+                    itemSize={3}
+                />
+                <bufferAttribute
+                    attach="attributes-aSize"
+                    count={count}
+                    array={sizes}
+                    itemSize={1}
+                />
+                <bufferAttribute
+                    attach="attributes-aOffset"
+                    count={count}
+                    array={offsets}
+                    itemSize={1}
+                />
+            </bufferGeometry>
+            <shaderMaterial
+                ref={materialRef}
+                transparent
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+                vertexShader={ParticleShader.vertexShader}
+                fragmentShader={ParticleShader.fragmentShader}
+                uniforms={useMemo(() => ({
+                    ...ParticleShader.uniforms,
+                    uResolution: { value: new THREE.Vector2(size.width, size.height) }
+                }), [size])}
+            />
+        </points>
+    )
+}
+
+function Shockwave({ progress }: { progress: number }) {
+    const meshRef = useRef<THREE.Mesh>(null)
 
     return (
-        <group>
-            <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.2}>
-                <Text
-                    ref={meshRef}
-                    position={position}
-                    fontSize={0.9}
-                    color="#ffffff"
-                    anchorX="center"
-                    anchorY="middle"
-                    scale={scale}
-                    font={CHINESE_FONT}
-                    onPointerOver={() => setHovered(true)}
-                    onPointerOut={() => setHovered(false)}
-                >
-                    {char}
-                    <meshStandardMaterial
-                        emissive={hovered ? "#00ffff" : "#ffff00"}
-                        emissiveIntensity={hovered ? 10 : 2}
-                        toneMapped={false}
-                        transparent
-                        opacity={opacity}
-                        depthTest={false}
-                    />
-                </Text>
-            </Float>
-        </group>
+        <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+            <planeGeometry args={[50, 50]} />
+            <shaderMaterial
+                transparent
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+                vertexShader={ShockwaveShader.vertexShader}
+                fragmentShader={ShockwaveShader.fragmentShader}
+                uniforms={useMemo(() => ({
+                    uTime: { value: 0 },
+                    uProgress: { value: progress }
+                }), [progress])}
+            />
+        </mesh>
     )
 }
 
 export default function Finale() {
-    const pointsRef = useRef<THREE.Points>(null)
-    const [phase, setPhase] = useState<AnimationPhase>('IMPLOSION')
+    const [phase, setPhase] = useState<AnimationPhase>('SYSTEM_HALT')
+    const [progress, setProgress] = useState(0)
     const startTimeRef = useRef<number>(0)
-    const { clock } = useThree()
+    const { clock, scene } = useThree()
+    const [messagePoints, setMessagePoints] = useState<THREE.Vector3[]>([])
+
+    const setStage = useStore(state => state.setStage)
+
+    // Sample points from text for constellation
+    const lines = [
+        "[ 运行时长: 50 年 ]",
+        "[ 感谢你的无限算力 ]",
+        "[ 生日快乐, 我的根目录 ]"
+    ]
 
     useEffect(() => {
         startTimeRef.current = clock.getElapsedTime()
-    }, [])
 
-    const PARTICLE_COUNT = 10000
-    const { positions, colors, initialPositions, particleMetadata } = useMemo(() => {
-        const positions = new Float32Array(PARTICLE_COUNT * 3)
-        const colors = new Float32Array(PARTICLE_COUNT * 3)
-        const initialPositions = new Float32Array(PARTICLE_COUNT * 3)
-        const particleMetadata = new Float32Array(PARTICLE_COUNT * 3) // [armOffset, spiralTightness, distanceAlongArm]
+        // Logic to generate points from invisible text
+        // This is a simplified way to get targets for particles
+        const points: THREE.Vector3[] = []
+        const tempPoints: THREE.Vector3[] = []
 
-        const palette = [
-            new THREE.Color("#ff00ff"), // Magenta
-            new THREE.Color("#00ffff"), // Cyan
-            new THREE.Color("#ffff00"), // Yellow
-            new THREE.Color("#ffffff"), // White
-            new THREE.Color("#ff69b4"), // Hot Pink
-            new THREE.Color("#00ff7f"), // Spring Green
-            new THREE.Color("#ffa500"), // Orange
-        ]
-
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            // Initial chaotic distribution
-            const r = 10 + Math.random() * 20
-            const theta = Math.random() * Math.PI * 2
-            const phi = Math.acos((Math.random() * 2) - 1)
-
-            const x = r * Math.sin(phi) * Math.cos(theta)
-            const y = r * Math.sin(phi) * Math.sin(theta)
-            const z = r * Math.cos(phi)
-
-            positions[i * 3] = x
-            positions[i * 3 + 1] = y
-            positions[i * 3 + 2] = z
-
-            initialPositions[i * 3] = x
-            initialPositions[i * 3 + 1] = y
-            initialPositions[i * 3 + 2] = z
-
-            const color = palette[Math.floor(Math.random() * palette.length)]
-            colors[i * 3] = color.r
-            colors[i * 3 + 1] = color.g
-            colors[i * 3 + 2] = color.b
-
-            // Refined spiral metadata: 4 distinct arms
-            particleMetadata[i * 3] = (Math.floor(Math.random() * 4) * (Math.PI / 2)) // Arm base angle
-            particleMetadata[i * 3 + 1] = 0.4 + Math.random() * 0.1 // Spiral tightness variance
-            particleMetadata[i * 3 + 2] = Math.random() // Distance along arm (0 to 1)
-        }
-
-        return { positions, colors, initialPositions, particleMetadata }
+        // We use a small hack: create a temporary text geometry to sample from
+        // But since we are in R3F, we'll wait for the font to load and then maybe just use pre-calculated layout or use <Text> properties
     }, [])
 
     useFrame((state) => {
-        if (!pointsRef.current) return
         const elapsed = state.clock.getElapsedTime() - startTimeRef.current
 
-        let currentPhase: AnimationPhase = 'IMPLOSION'
-        let progress = 0
-
-        if (elapsed < PHASE_DURATIONS.IMPLOSION) {
-            currentPhase = 'IMPLOSION'
-            progress = elapsed / PHASE_DURATIONS.IMPLOSION
-        } else if (elapsed < PHASE_DURATIONS.IMPLOSION + PHASE_DURATIONS.SHOCKWAVE) {
-            currentPhase = 'SHOCKWAVE'
-            progress = (elapsed - PHASE_DURATIONS.IMPLOSION) / PHASE_DURATIONS.SHOCKWAVE
-        } else if (elapsed < PHASE_DURATIONS.IMPLOSION + PHASE_DURATIONS.SHOCKWAVE + PHASE_DURATIONS.CRYSTALLIZATION) {
-            currentPhase = 'CRYSTALLIZATION'
-            progress = (elapsed - PHASE_DURATIONS.IMPLOSION - PHASE_DURATIONS.SHOCKWAVE) / PHASE_DURATIONS.CRYSTALLIZATION
+        if (elapsed < PHASE_DURATIONS.SYSTEM_HALT) {
+            setPhase('SYSTEM_HALT')
+            setProgress(elapsed / PHASE_DURATIONS.SYSTEM_HALT)
+        } else if (elapsed < PHASE_DURATIONS.SYSTEM_HALT + PHASE_DURATIONS.IMPLOSION) {
+            setPhase('IMPLOSION')
+            setProgress((elapsed - PHASE_DURATIONS.SYSTEM_HALT) / PHASE_DURATIONS.IMPLOSION)
+        } else if (elapsed < PHASE_DURATIONS.SYSTEM_HALT + PHASE_DURATIONS.IMPLOSION + PHASE_DURATIONS.SHOCKWAVE) {
+            setPhase('SHOCKWAVE')
+            setProgress((elapsed - PHASE_DURATIONS.SYSTEM_HALT - PHASE_DURATIONS.IMPLOSION) / PHASE_DURATIONS.SHOCKWAVE)
         } else {
-            currentPhase = 'SOLAR_SYSTEM'
-            progress = 1
+            setPhase('CONSTELLATION')
+            const constellationElapsed = elapsed - PHASE_DURATIONS.SYSTEM_HALT - PHASE_DURATIONS.IMPLOSION - PHASE_DURATIONS.SHOCKWAVE
+            setProgress(Math.min(1, constellationElapsed / PHASE_DURATIONS.CONSTELLATION))
         }
-
-        if (currentPhase !== phase) setPhase(currentPhase)
-
-        const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute
-        const posArray = posAttr.array as Float32Array
-        const time = state.clock.getElapsedTime()
-
-        // Opacity control for points: dim them if in SOLAR_SYSTEM
-        const pointsMat = pointsRef.current.material as THREE.PointsMaterial
-        if (currentPhase === 'SOLAR_SYSTEM') {
-            pointsMat.opacity = THREE.MathUtils.lerp(pointsMat.opacity, 0.3, 0.05)
-        }
-
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const i3 = i * 3
-            let x, y, z
-
-            if (currentPhase === 'IMPLOSION') {
-                // Sucking inward
-                const factor = 1 - Math.pow(progress, 2)
-                x = initialPositions[i3] * factor
-                y = initialPositions[i3 + 1] * factor
-                z = initialPositions[i3 + 2] * factor
-            } else if (currentPhase === 'SHOCKWAVE') {
-                // Exploding outward
-                const force = progress * 25
-                const dirX = initialPositions[i3], dirY = initialPositions[i3 + 1], dirZ = initialPositions[i3 + 2]
-                const mag = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1
-                x = (dirX / mag) * force; y = (dirY / mag) * force; z = (dirZ / mag) * force
-            } else {
-                // Logarithmic Spiral Galaxy math
-                const armBaseAngle = particleMetadata[i3]
-                const tightness = particleMetadata[i3 + 1]
-                const t = particleMetadata[i3 + 2] // 0 to 1 along arm
-
-                const radius = 2 + t * 18
-                const angle = armBaseAngle + (radius * tightness) + (time * 0.15)
-
-                // Add some thickness and scatter
-                const scatter = (Math.sin(i * 0.1) * 0.5) * (1 - t * 0.5)
-                const targetX = Math.cos(angle) * (radius + scatter)
-                const targetY = (Math.sin(i * 0.5) * 1.5) * (1 - t * 0.8) // thinner at center
-                const targetZ = Math.sin(angle) * (radius + scatter)
-
-                if (currentPhase === 'CRYSTALLIZATION') {
-                    // Transition from shockwave edge to spiral
-                    const mag = Math.sqrt(initialPositions[i3] ** 2 + initialPositions[i3 + 1] ** 2 + initialPositions[i3 + 2] ** 2) || 1
-                    const startX = (initialPositions[i3] / mag) * 25
-                    const startY = (initialPositions[i3 + 1] / mag) * 25
-                    const startZ = (initialPositions[i3 + 2] / mag) * 25
-
-                    x = THREE.MathUtils.lerp(startX, targetX, progress)
-                    y = THREE.MathUtils.lerp(startY, targetY, progress)
-                    z = THREE.MathUtils.lerp(startZ, targetZ, progress)
-                } else {
-                    x = targetX; y = targetY; z = targetZ
-                }
-            }
-            posArray[i3] = x; posArray[i3 + 1] = y; posArray[i3 + 2] = z
-        }
-        posAttr.needsUpdate = true
     })
 
-    const line1 = "[ 运行时长：50 年 ]"
-    const line2 = "[ 感谢你的无限算力 ]"
-    const line3 = "[ 生日快乐，我的根目录 ]"
-
-    // Calculate progress for crystallization phase
-    const elapsed = clock.getElapsedTime() - startTimeRef.current
-    const crystallizationStart = PHASE_DURATIONS.IMPLOSION + PHASE_DURATIONS.SHOCKWAVE
-    const phaseProgress = Math.max(0, Math.min(1, (elapsed - crystallizationStart) / PHASE_DURATIONS.CRYSTALLIZATION))
-
+    // Hidden text for layout calculation (could use it to sample points)
     return (
         <group>
-            <color attach="background" args={['#000308']} />
+            <color attach="background" args={['#00050a']} />
 
-            <points ref={pointsRef}>
-                <bufferGeometry>
-                    <bufferAttribute
-                        attach="attributes-position"
-                        count={PARTICLE_COUNT}
-                        array={positions}
-                        itemSize={3}
-                    />
-                    <bufferAttribute attach="attributes-color" count={PARTICLE_COUNT} array={colors} itemSize={3} />
-                </bufferGeometry>
-                <pointsMaterial
-                    vertexColors
-                    size={0.12}
-                    sizeAttenuation
-                    transparent
-                    opacity={0.9}
-                    blending={THREE.AdditiveBlending}
-                    depthWrite={false}
-                />
-            </points>
+            <SingularityParticles phase={phase} progress={progress} messagePoints={messagePoints} />
 
-            <WireframeLogo phase={phase} progress={phaseProgress} />
+            {phase === 'SHOCKWAVE' && <Shockwave progress={progress} />}
 
-            <group position={[0, 1.8, 0]}>
-                {line1.split("").map((char, i) => (
-                    <CrystallizedLetter
-                        key={`l1-${i}`}
-                        char={char}
-                        position={[(i - (line1.length - 1) / 2) * 0.9, 1.5, 0]}
-                        phase={phase}
-                        phaseProgress={phaseProgress}
-                    />
-                ))}
-                {line2.split("").map((char, i) => (
-                    <CrystallizedLetter
-                        key={`l2-${i}`}
-                        char={char}
-                        position={[(i - (line2.length - 1) / 2) * 0.9, 0, 0]}
-                        phase={phase}
-                        phaseProgress={phaseProgress}
-                    />
-                ))}
-                {line3.split("").map((char, i) => (
-                    <CrystallizedLetter
-                        key={`l3-${i}`}
-                        char={char}
-                        position={[(i - (line3.length - 1) / 2) * 0.9, -1.5, 0]}
-                        phase={phase}
-                        phaseProgress={phaseProgress}
-                    />
-                ))}
+            {/* Hidden Text for reference or to sample from if we had a sampler logic */}
+            {/* For now, we manually define target areas in the shader for simplified "constellation" clustering */}
+
+            <group position={[0, 0, 0]}>
+                {phase === 'CONSTELLATION' && progress > 0.8 && (
+                    <Center top position={[0, 1.5, 0]}>
+                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
+                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
+                                {lines[0]}
+                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.8) * 5} />
+                            </Text>
+                        </Float>
+                    </Center>
+                )}
+                {phase === 'CONSTELLATION' && progress > 0.85 && (
+                    <Center position={[0, 0, 0]}>
+                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
+                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
+                                {lines[1]}
+                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.85) * 5} />
+                            </Text>
+                        </Float>
+                    </Center>
+                )}
+                {phase === 'CONSTELLATION' && progress > 0.9 && (
+                    <Center bottom position={[0, -1.5, 0]}>
+                        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
+                            <Text font={CHINESE_FONT} fontSize={0.8} color="#ffcc33">
+                                {lines[2]}
+                                <meshStandardMaterial emissive="#ffcc33" emissiveIntensity={2} toneMapped={false} transparent opacity={(progress - 0.9) * 5} />
+                            </Text>
+                        </Float>
+                    </Center>
+                )}
             </group>
 
-            <ambientLight intensity={1} />
+            <ambientLight intensity={0.2} />
+            <pointLight position={[0, 0, 5]} intensity={2} color="#ffcc33" />
         </group>
     )
 }

@@ -54,20 +54,39 @@ export default function SoundManager() {
         if (stage === 'MAIN_STAGE') {
             // Start Drone
             ambienceRef.current?.start();
-            // Play "Welcome" sound?
+            // Play "Welcome" sound
             const synth = new Tone.Synth().toDestination();
             synth.triggerAttackRelease("C2", "8n");
         } else if (stage === 'FINALE') {
-            // Stop drone, play explosion
+            // "SYSTEM_HALT" and "IMPLOSION" usually start immediately
+            // We want a slow fade out of current audio or immediate cut
             ambienceRef.current?.stop();
-            const synth = new Tone.MembraneSynth().toDestination();
-            synth.triggerAttackRelease("C1", "2n");
-            // Happy birthday melody?
+            Tone.Destination.volume.rampTo(-Infinity, 1); // Fade to silence for System Halt
+
             const now = Tone.now()
-            const poly = new Tone.PolySynth(Tone.Synth).toDestination();
-            poly.triggerAttackRelease(["C4", "E4", "G4"], "4n", now + 0.5);
-            poly.triggerAttackRelease(["D4", "F4", "A4"], "4n", now + 1.0);
-            poly.triggerAttackRelease(["C4", "E4", "G4", "C5"], "2n", now + 1.5);
+
+            // At the moment of SHOCKWAVE (approx 2s + 1.5s after FINALE starts)
+            // We want a deep, cinematic sub-bass boom
+            const boom = new Tone.MembraneSynth({
+                pitchDecay: 0.1,
+                octaves: 4,
+                oscillator: { type: "sine" }
+            }).toDestination();
+            boom.volume.value = 0;
+            boom.triggerAttackRelease("C1", "2n", now + 3.5);
+
+            // Shimmering chimes for the Golden Singularity / Constellation
+            const chimes = new Tone.PolySynth(Tone.MetalSynth).toDestination();
+            chimes.volume.value = -15;
+            const constellationStart = now + 4.5;
+
+            const chord = ["C5", "E5", "G5", "B5", "D6"];
+            chord.forEach((note, i) => {
+                chimes.triggerAttackRelease(note, "4n", constellationStart + i * 0.5);
+            });
+
+            // Bring volume back for the chimes
+            Tone.Destination.volume.rampTo(0, 2, constellationStart);
         }
     }, [stage])
 
