@@ -2,6 +2,7 @@ import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Text, Float } from '@react-three/drei'
+import { getAssetPath } from '@/utils/paths'
 
 type AnimationPhase = 'IMPLOSION' | 'SHOCKWAVE' | 'CRYSTALLIZATION' | 'SOLAR_SYSTEM'
 
@@ -41,7 +42,7 @@ function WireframeLogo({ phase, progress }: { phase: AnimationPhase, progress: n
     )
 }
 
-const CHINESE_FONT = "/fonts/NotoSansSC.ttf";
+const CHINESE_FONT = getAssetPath("/fonts/NotoSansSC.ttf");
 
 function CrystallizedLetter({ char, position, phase, phaseProgress }: { char: string, position: [number, number, number], phase: AnimationPhase, phaseProgress: number }) {
     const meshRef = useRef<THREE.Mesh>(null)

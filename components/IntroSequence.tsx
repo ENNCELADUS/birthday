@@ -6,6 +6,7 @@ import DNAHelix from './DNAHelix'
 import { useStore } from '@/store/store'
 import { Text } from '@react-three/drei'
 import gsap from 'gsap'
+import { getAssetPath } from '@/utils/paths'
 
 extend({ MatrixRainMaterial })
 
@@ -70,7 +71,7 @@ export default function IntroSequence() {
                     color="#00ff00"
                     anchorX="center"
                     anchorY="middle"
-                    font="/fonts/NotoSansSC.ttf"
+                    font={getAssetPath("/fonts/NotoSansSC.ttf")}
                 >
                     {"> 正在初始化母体协议..."}
                 </Text>
