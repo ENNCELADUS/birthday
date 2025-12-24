@@ -8,7 +8,7 @@ const Section = (props: any) => {
     return (
         <section className={`h-screen flex flex-col justify-center p-10 ${props.right ? 'items-end text-right' : 'items-start text-left'}`} style={{ opacity: props.opacity }}>
             <div className="w-1/2 flex items-center justify-center">
-                <div className="max-w-md w-full bg-black/50 backdrop-blur-md border border-cyan-500/30 p-8 rounded-lg text-cyan-50 font-mono shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+                <div className="max-w-md w-full bg-black/30 backdrop-blur-md p-8 rounded-lg text-cyan-50 font-mono shadow-[0_0_15px_rgba(0,255,255,0.1)] border-l-2 border-cyan-500/20">
                     {props.children}
                 </div>
             </div>

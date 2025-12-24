@@ -34,6 +34,7 @@ function MainStage() {
     return (
         <group ref={groupRef}>
             <HeartCore />
+            <DataNodes />
         </group>
     )
 }
@@ -72,7 +73,6 @@ function SceneContent() {
                     <Suspense fallback={null}>
                         <NeuralBackground />
                         <MainStage />
-                        <DataNodes />
                         <Overlay />
                     </Suspense>
                 </ScrollControls>
