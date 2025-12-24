@@ -92,7 +92,7 @@ function sampleTextPoints(lines: string[], count: number) {
 function SingularityParticles({ phase, progress, transition, messagePoints }: { phase: AnimationPhase, progress: number, transition: number, messagePoints: THREE.Vector3[] }) {
     const materialRef = useRef<THREE.ShaderMaterial>(null)
     const { size } = useThree()
-    const count = 120000;
+    const count = 40000;
 
     const { positions, targets, sizes, offsets } = useMemo(() => {
         const positions = new Float32Array(count * 3)
@@ -193,7 +193,7 @@ export default function Finale() {
             "[ SYSTEM_UPTIME : 50 YEARS ]",
             "[ CORE_STABILITY : PERFECT ]",
             "[ HAPPY BIRTHDAY, MOTHER ]"
-        ], 120000);
+        ], 40000);
         setMessagePoints(points);
     }, [])
 
